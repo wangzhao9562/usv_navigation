@@ -1,5 +1,5 @@
 static_planner
-静态规划器
+静态规划器功能包
 
 1.static_planner is equal to global_planner in original navigation pkg, used to get a global plan for robot between start and goal
   静态规划器等同于原导航包的全局规划器, 用于为机器人规划当前位置到目标位置的全局路径
