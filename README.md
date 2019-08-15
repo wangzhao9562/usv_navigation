@@ -16,6 +16,6 @@ Switching between following mode and controlling mode has not been tested
 跟随模式和控制模式的自动切换尚未测试
 
 Simulation with rbx1 robot: https://github.com/pirobot/rbx1
-![](https://github.com/wangzhao9562/usv_navigation/blob/master/PICTURE/simulation01.png)
-![](https://github.com/wangzhao9562/usv_navigation/blob/master/PICTURE/simulation02.png)
-![](https://github.com/wangzhao9562/usv_navigation/blob/master/PICTURE/simulation03.png)
+![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/simulation01.png)
+![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/simulation02.png)
+![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/simulation03.png)
