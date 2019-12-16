@@ -89,6 +89,8 @@ namespace move_base {
 
     //for comanding the base
     vel_pub_ = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
+    next_pos_pub_ = nh.advertise<geometry_msgs::PoseStamped>("next_goal",1); // extra interface for real HUST_USV
+
     current_goal_pub_ = private_nh.advertise<geometry_msgs::PoseStamped>("current_goal", 0 );
 
     ros::NodeHandle action_nh("move_base");
@@ -161,8 +163,7 @@ namespace move_base {
     }
 
     //initially, we'll need to make a plan
-    // state_ = PLANNING;
-	state_ = WAITING;
+    state_ = PLANNING;
 
     //we'll start executing recovery behaviors at the beginning of our list
     recovery_index_ = 0;
@@ -576,7 +577,7 @@ namespace move_base {
     boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
     while(n.ok()){
       //check if we should run the planner (the mutex is locked)
-      while(wait_for_wake || !runPlanner_ || state_ == WAITING || state_ == FOLLOWING){
+      while(wait_for_wake || !runPlanner_){
         //if we should not be running the planner then suspend this thread
         ROS_DEBUG_NAMED("move_base_plan_thread","Planner thread is suspending");
         planner_cond_.wait(lock);
@@ -615,7 +616,7 @@ namespace move_base {
 
         //make sure we only start the controller if we still haven't reached the goal
         if(runPlanner_)
-		  state_ = FOLLOWING;
+          state_ = FOLLOWING;
           // state_ = CONTROLLING;
         if(planner_frequency_ <= 0)
           runPlanner_ = false;
@@ -691,7 +692,7 @@ namespace move_base {
     last_oscillation_reset_ = ros::Time::now();
     planning_retries_ = 0;
 
-    follow_waypoint_index_ = 0;
+    follow_waypoint_index_ = 0; // ignore start point
 
     ros::NodeHandle n;
     while(n.ok())
@@ -819,6 +820,7 @@ namespace move_base {
     boost::recursive_mutex::scoped_lock ecl(configuration_mutex_);
     //we need to be able to publish velocity commands
     geometry_msgs::Twist cmd_vel;
+    geometry_msgs::PoseStamped next_goal;
 
     //update feedback to correspond to our curent position
     tf::Stamped<tf::Pose> global_pose;
@@ -886,20 +888,9 @@ namespace move_base {
 
     //the move_base state machine, handles the control logic for navigation
     switch(state_){
-      case WAITING:
-	  	if(!isLayeredMapWindowSame()){
-          ROS_DEBUG_NAMED("move_base","Switch to controlling mode");
-	      publishZeroVelocity();
-          state_ = CONTROLLING;
-        }
-        else{
-          ROS_DEBUG_NAMED("move_base","Waiting for goal msg");
-          publishZeroVelocity();
-        }
-		break;
-		
       //if we are in a planning state, then we'll attempt to make a plan
       case PLANNING:
+        ROS_INFO("move_base: PLANNING");
         {
           boost::recursive_mutex::scoped_lock lock(planner_mutex_);
           runPlanner_ = true;
@@ -907,112 +898,125 @@ namespace move_base {
         }
         ROS_DEBUG_NAMED("move_base","Waiting for plan, in the planning state.");
         break;
+ 
+      case AVOIDING:
+        ROS_INFO("move_base: In avoiding state");
+        ROS_DEBUG_NAMED("move_base", "In avoding state.");
 
-      //if we're controlling, we'll attempt to find valid velocity commands
-      case CONTROLLING:
-        ROS_DEBUG_NAMED("move_base","In controlling state.");
-
-        //check to see if we've reached our goal
+        // check if we've reached the goal
         if(tc_->isGoalReached()){
-          ROS_DEBUG_NAMED("move_base","Goal reached!");
-          resetState();
+          ROS_INFO("move_base", "Goal reached!");
+          ROS_DEBUG_NAMED("move_base", "Goal reached!");
+          resetState(); 
 
-          //disable the planner thread
-          boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
-          runPlanner_ = false;
+          boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);;
+          runPlanner_ =  false;
           lock.unlock();
 
-          as_->setSucceeded(move_base_msgs::MoveBaseResult(), "Goal reached.");
+          as_->setSucceeded(move_base_msgs::MoveBaseResult(), "Goal reached");
           return true;
         }
-
-        //check for an oscillation condition
-        if(oscillation_timeout_ > 0.0 &&
-            last_oscillation_reset_ + ros::Duration(oscillation_timeout_) < ros::Time::now())
-        {
+        if(oscillation_timeout_ > 0.0 && last_oscillation_reset_ + ros::Duration(oscillation_timeout_) < ros::Time::now()){
           publishZeroVelocity();
           state_ = CLEARING;
           recovery_trigger_ = OSCILLATION_R;
         }
-        
-        {
-         boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
-        
-        if(tc_->computeVelocityCommands(cmd_vel)){
-          ROS_DEBUG_NAMED( "move_base", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf",
-                           cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z );
-          last_valid_control_ = ros::Time::now();
-          //make sure that we send the velocity command to the base
-          vel_pub_.publish(cmd_vel);
-          if(recovery_trigger_ == CONTROLLING_R)
-            recovery_index_ = 0;
-        }
-        else {
-          ROS_DEBUG_NAMED("move_base", "The local planner could not find a valid plan.");
-          ros::Time attempt_end = last_valid_control_ + ros::Duration(controller_patience_);
-
-          //check if we've tried to find a valid control for longer than our time limit
-          if(ros::Time::now() > attempt_end){
-            //we'll move into our obstacle clearing mode
-            publishZeroVelocity();
-            state_ = CLEARING;
-            recovery_trigger_ = CONTROLLING_R;
-          }
-          else{
-            //otherwise, if we can't find a valid control, we'll go back to planning
-            last_valid_plan_ = ros::Time::now();
-            planning_retries_ = 0;
+        else{
+          // if TP is not blocked, switch state from avoiding to planning
+          if(tc_->isStopAvoidance()){
+            ROS_INFO("move_base: REPLANNING");
             state_ = PLANNING;
-            publishZeroVelocity();
-
-            //enable the planner thread in case it isn't running on a clock
             boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
             runPlanner_ = true;
             planner_cond_.notify_one();
-            lock.unlock();
+            ROS_DEBUG_NAMED("move_base", "Switch to planning from avoiding");
+          }
+          else{
+            boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(planner_costmap_ros_->getCostmap()->getMutex()));
+            // if compute successfully, publish the command
+            if(tc_->computeVelCommandsInStateOfAvoid(cmd_vel, follow_waypoint_index_)){
+            // if(tc_->computeVelCommandsInStateOfAvoid(next_goal, follow_waypoint_index)){ 
+              ROS_INFO("move_base", "Got a valid command from the local planner in state of avoiding: %.3lf, %.3lf, %.3lf", cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z);
+              ROS_DEBUG_NAMED("move_base", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf", cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z);
+              last_valid_control_ = ros::Time::now();
+              vel_pub_.publish(cmd_vel);
+              // next_pos_pub_.publish(next_goal);
+              if(recovery_trigger_ == CONTROLLING_R)
+                recovery_index_ = 0;
+              }
+            else{
+              ROS_DEBUG_NAMED("move_base", "The local planner could not find a valid plan.");
+              ros::Time attempt_end = last_valid_control_ + ros::Duration(controller_patience_);
+
+              //check if we've tried to find a valid control for longer than our time limit
+              if(ros::Time::now() > attempt_end){
+                //we'll move into our obstacle clearing mode
+                publishZeroVelocity();
+                state_ = CLEARING;
+                recovery_trigger_ = CONTROLLING_R;
+              }
+              else{
+                //otherwise, if we can't find a valid control, we'll go back to planning
+                last_valid_plan_ = ros::Time::now();
+                planning_retries_ = 0;
+                state_ = PLANNING;
+                publishZeroVelocity();
+
+                //enable the planner thread in case it isn't running on a clock
+                boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
+                runPlanner_ = true;
+                planner_cond_.notify_one();
+                lock.unlock();
+              }
+            }
           }
         }
-        }
-
         break;
-		
-	  case FOLLOWING:
-	    ROS_DEBUG_NAMED("move_base", "In following state.");
-		if(tc_->isGoalReached()){
-			ROS_DEBUG_NAMED("move_base", "Goal reached!");
-			resetState();
-			//disable the planner thread
-			boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
+  
+      case FOLLOWING:
+        ROS_INFO("move_base: FOLLOWING.");
+	ROS_DEBUG_NAMED("move_base", "In following state.");
+	if(tc_->isGoalReached()){
+            ROS_INFO("move_base: Goal reached!");
+            ROS_DEBUG_NAMED("move_base", "Goal reached!");
+	    resetState();
+	    //disable the planner thread
+	    boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
             runPlanner_ = false;
             lock.unlock();
 
             as_->setSucceeded(move_base_msgs::MoveBaseResult(), "Goal reached.");
             return true;
-		}
+	}
 		
-		// if costmap in static is not same in local，set state_ as CONTROLLING
-		if(!isLayeredMapWindowSame()){
-			ROS_DEBUG_NAMED("move_base","Switch to controlling state.");
-			state_ = CONTROLLING;
-			return false;
-		}
-		
-		if(tc_->computeVelocityCommandsInStateFollowing(cmd_vel, follow_waypoint_index_)){
-			ROS_DEBUG_NAMED( "move_base", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf",
-			                 cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z );
-			last_valid_control_ = ros::Time::now();
-            //make sure that we send the velocity command to the base
-            vel_pub_.publish(cmd_vel);
-		}
+	// if costmap in static is not same in local，set state_ as CONTROLLING
+	if(tc_->isFollowBlocked(follow_waypoint_index_)){
+	    ROS_INFO("move_base","Switch to state of avoiding.");
+	    ROS_DEBUG_NAMED("move_base","Switch to state of avoiding.");
+	    state_ = AVOIDING;
+	}
         else{
-            ROS_DEBUG_NAMED("move_base", "The local planner could not find a valid global plan");
-            publishZeroVelocity();
-            resetState(); 
+            if(tc_->computeVelCommandsInStateOfFollow(cmd_vel, follow_waypoint_index_)){ 
+              ROS_INFO( "move_base", "Got a valid command from the local planner in state of following: %.3lf, %.3lf, %.3lf",
+                                     cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z);
+              ROS_DEBUG_NAMED( "move_base", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf",
+			                 cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z );
+	      last_valid_control_ = ros::Time::now(); 
+              
+              //make sure that we send the velocity command to the base
+              vel_pub_.publish(cmd_vel);
+	    }
+            else{
+              ROS_DEBUG_NAMED("move_base", "The local planner could not find a valid global plan");
+              publishZeroVelocity();
+              resetState(); 
+            }
         }
-		break;
+	break;
 
       //we'll try to clear out space with any user-provided recovery behaviors
       case CLEARING:
+        ROS_INFO("move_base: CLEARING");
         ROS_DEBUG_NAMED("move_base","In clearing/recovery state");
         //we'll invoke whatever recovery behavior we're currently on if they're enabled
         if(recovery_behavior_enabled_ && recovery_index_ < recovery_behaviors_.size()){
