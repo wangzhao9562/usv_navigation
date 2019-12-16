@@ -84,24 +84,26 @@ class AdAStarPlanner : public Planner {
         // void add(unsigned char* costs, Index ind, int i, int next_i, int end_x, int end_y);
         void add(int* costs, Index ind, int i, int next_i, int end_x, int end_y);
 		
-		std::pair<int, int> nextPos(int cur_th_filter); // used for advanced A*
-		float calcG(Index cur_ind, int ind, int det_ind)const;
-		float calcH(float compensate, float distance);
+	std::pair<int, int> nextPos(int cur_th_filter); // used for advanced A*
+	std::pair<int, int> previousPos(int cur_th_filter);
+
+        float calcG(Index cur_ind, int ind, int det_ind)const;
+	float calcH(float compensate, float distance);
         int isInList(int ind); // used for advanced A*		
-		int orientationFilter(double th);
-		int CalcIndexOrientation(int det_ind, int nx);
-		float CalcCompensate(float cur_th, float th_det);
+	int orientationFilter(double th);
+	int CalcIndexOrientation(int det_ind, int nx);
+	float CalcCompensate(float cur_th, float th_det);
 		
-		std::vector<Index> queue_;
-		Index end_index_;
+	std::vector<Index> queue_;
+	Index end_index_;
 		
-		const float u_cost1_ = 1.0f;
-		const float u_cost2_ = 1.41f;
-		float total_distance_;
+	const float u_cost1_ = 1.0f;
+	const float u_cost2_ = 1.41f;
+	float total_distance_;
 		
-		double resolution_;
+	double resolution_;
 		
-		CostmapWrapper wrapper_;
+	CostmapWrapper wrapper_;
 };
 
 } //end namespace static_planner
