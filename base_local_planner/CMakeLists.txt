@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(base_local_planner)
 
+add_compile_options(-std=c++11)
+
 find_package(catkin REQUIRED
         COMPONENTS
             angles
@@ -19,6 +21,7 @@ find_package(catkin REQUIRED
             std_msgs
             tf
             voxel_grid
+            visualization_msgs
         )
 
 find_package(Boost REQUIRED
