@@ -64,11 +64,9 @@ namespace move_base {
   typedef actionlib::SimpleActionServer<move_base_msgs::MoveBaseAction> MoveBaseActionServer;
 
   enum MoveBaseState {
-	WAITING,
-	REPLANNING,
-	FOLLOWING,
+    FOLLOWING,
     PLANNING,
-    CONTROLLING,
+    AVOIDING,
     CLEARING
   };
 
@@ -229,13 +227,16 @@ namespace move_base {
       dynamic_reconfigure::Server<move_base::MoveBaseConfig> *dsrv_;
       
       void reconfigureCB(move_base::MoveBaseConfig &config, uint32_t level);
-
+     
       move_base::MoveBaseConfig last_config_;
       move_base::MoveBaseConfig default_config_;
       bool setup_, p_freq_change_, c_freq_change_;
       bool new_global_plan_;
 	  
-	  unsigned int follow_waypoint_index_;
+      unsigned int follow_waypoint_index_;
+
+      //extra interface for usv
+      ros::Publisher next_pos_pub_;
   };
 };
 #endif
