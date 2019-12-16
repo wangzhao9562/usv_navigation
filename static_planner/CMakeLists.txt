@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(static_planner)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+# set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED
   COMPONENTS
@@ -46,6 +47,7 @@ add_library(${PROJECT_NAME}
   src/orientation_filter.cpp
   src/planner_core.cpp
   src/costmap_wrapper.cpp
+  src/bspline_filter.cpp
 )
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
