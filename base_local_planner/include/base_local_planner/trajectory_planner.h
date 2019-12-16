@@ -60,11 +60,20 @@
 //for creating a local cost grid
 #include <base_local_planner/map_cell.h>
 #include <base_local_planner/map_grid.h>
+#include <visualization_msgs/Marker.h>
 
 #define PI 3.1415926	
 
 namespace base_local_planner {
-	
+  /**
+   * @brief Enum class of void choice 
+   */
+   enum class AvoidOrientation{
+      MID,
+      LEFT,
+      RIGHT
+   };
+  	
   /**
    * @class TrajectoryPlanner
    * @brief Computes control velocities for a robot given a costmap, a plan, and the robot's position in the world. 
@@ -107,6 +116,12 @@ namespace base_local_planner {
        * @param simple_attractor Set this to true to allow simple attraction to a goal point instead of intelligent cost propagation
        * @param y_vels A vector of the y velocities the controller will explore
        * @param angular_sim_granularity The distance between simulation points for angular velocity should be small enough that the robot doesn't hit things
+       * @param follow_vel Velocity of vehicle when follow with a path
+       * @param ang_for_left Left of three path in state of avoidance
+       * @param ang_for_right Right of three path in state of avoidance
+       * @param obs_detect_dist Distance of obstacle detecting through visual three path
+       * @param vis_ang_for_left Left of three path in state of dynamic obstacle checking
+       * @param vis_ang_for_right Right of three path in state of dynamic obstacle checking 
        */
       TrajectoryPlanner(WorldModel& world_model, 
           const costmap_2d::Costmap2D& costmap, 
@@ -126,7 +141,9 @@ namespace base_local_planner {
           bool simple_attractor = false,
           std::vector<double> y_vels = std::vector<double>(0),
           double stop_time_buffer = 0.2,
-          double sim_period = 0.1, double angular_sim_granularity = 0.025);
+          double sim_period = 0.1, double angular_sim_granularity = 0.025,
+          double follow_vel = 0.05, double ang_for_left = 45, double ang_for_right = 45,
+          double obs_detec_dist = 1.0, double vis_ang_for_left = 5.0, double vis_ang_for_right = 5.0);
 
       /**
        * @brief  Destructs a trajectory controller
@@ -209,7 +226,73 @@ namespace base_local_planner {
       /** @brief Set the footprint specification of the robot. */
       void setFootprint( std::vector<geometry_msgs::Point> footprint ) { footprint_spec_ = footprint; }
 	  
-	  	  /**
+
+      /** 
+       * @brief compute line cost of three path
+       * @param cur_pos_x x coordinate of current position
+       * @param cur_pos_y y coordinate of current position
+       * @param cur_pos_th heading of current position in radian
+       * @param line_cost_of_mid computed line cost of mid way
+       * @param line_cost_of_left computed line cost of left way
+       * @param line_cost_of_right computed line cost of right way
+       */
+      void outputCostOfThreePath(double cur_pos_x, double cur_pos_y, double cur_pos_th, double& line_cost_of_mid, double& line_cost_of_left, double& line_cost_of_right);
+
+      /**
+       * @brief check whether the way to follow is blocked by obstacle
+       * @param next_wp_x x coordinate of next waypoint
+       * @param next_wp_y y coordinate of next waypoint
+       * @param cur_pos_x x coordinate of current position
+       * @param cur_pos_y y coordinate of current position
+       * @param cur_pos_th orientation of current position
+       * @return True represents the way to follow is not blocked, otherwise return false
+       */
+      bool isFollowBlocked(double next_wp_x, double next_wp_y, double cur_pos_x, double cur_pos_y, double cur_pos_th );
+
+      /**
+       * @brief check whether the three paths are free with obstacle
+       * @param cur_pos_x x coordinate of current position
+       * @param cur_pos_y y coordinate of current position
+       * @param cur_pos_th heading of current position in radian
+       * @return True represnets three paths are free, otherwise return false
+       */
+      bool isFrontPathFree(double cur_pos_x, double cur_pos_y, double cur_pos_th);
+
+
+      /**
+       * @brief follow point with TP method
+       * @param cur_pos_x x coordinate of current position
+       * @param cur_pos_y y coordinate of current position
+       * @param cur_pos_th orientation of current position
+       * @param vx variety to store compute result of x velocity
+       * @param vy variety to store compute result of y velocity
+       * @param vth variety to store compute result of angular velocity
+       * @return is there any error in computation
+       */
+      bool pointFollowWithTPMethod(double cur_pos_x, double cur_pos_y, double cur_pos_th, double& vx, double& vy, double& vth);
+
+      /**
+       * @brief follow point with TP method
+       * @param cur_pos_x x coordinate of current position
+       * @param cur_pos_y y coordinate of current position
+       * @param cur_pos_th orientation of current position
+       * @param goal_x Will be filled with message of x coordinate of next goal
+       * @param goal_y Will be filled with message of y coordinate of next goal
+       * @return is there any error in computation
+       */
+      bool pointFollowWithTPMethod(double cur_pos_x, double cur_pos_y, double cur_pos_th, double& goal_x, double& goal_y);
+	  
+      /**
+       * @brief  LOS point following logical
+       * @param  different between target pose and current orientation
+       * @param  vx x velocity
+       * @param  vy y velocity
+       * @param  vtheta angular velocity 
+       * @return 
+       */
+      void pointFollowLOS(double theta_det, double& vx, double& vy, double& vth);
+
+      /**
        * @brief LOS point following algorithm
        * @param goal_x x of target 
        * @param goal_y y of target
@@ -223,16 +306,53 @@ namespace base_local_planner {
        * @return whether reached the goal
        */	
       bool pointFollow(double& goal_x, double& goal_y, double& goal_th, double& x_i, double& y_i, double& th_i, double& vx, double& vy, double& vth);	   
-		  
-	  /**
-       * @brief  LOS point following logical
-       * @param  different between target pose and current orientation
-       * @param  vx x velocity
-       * @param  vy y velocity
-       * @param  vtheta angular velocity 
-       * @return 
+
+      /**
+       * @brief Ooutput parameters of visual area in pose stampe
+       * @param cur_pos_x current x coordinate of robot in world frame
+       * @param cur_pos_y current y coordinate of robot in world frame
+       * @param cur_pos_th current orientation of robot in world frame
+       * @return Visual area parameters in pose stampe
        */
-	  void pointFollowLOS(double theta_det, double& vx, double& vy, double& vth);
+      std::vector<geometry_msgs::PoseStamped> getVisualArea(double cur_pos_x, double cur_pos_y, double cur_pos_th); 
+
+
+      /**
+       * @brief Ooutput parameters of obstacle detecting area in pose stampe
+       * @param cur_pos_x current x coordinate of robot in world frame
+       * @param cur_pos_y current y coordinate of robot in world frame
+       * @param cur_pos_th current orientation of robot in world frame
+       * @return Obstacle detecting area parameters in pose stampe
+       */
+      std::vector<geometry_msgs::PoseStamped> getObsDetectionArea(double cur_pos_x, double cur_pos_y, double cur_pos_th);
+
+      /**
+       * @brief Output parameters of visual area
+       * @param cur_pos_x current x coordinate of vehicle
+       * @param cur_pos_y current y coordinate of vehicle
+       * @param cur_pos_th current orientation of vehicle
+       * @param mid_x x coordinate in world frame of mid way
+       * @param mid_y y coordinate in world frame of mid way
+       * @param vis_left_x x coordinate in world frame of visual left way
+       * @param vis_lett_y y coordinate in world frame of visual left way
+       * @param vis_right_x x coordinate in world frame of visual right way
+       * @param vis_right_y y coordinate in world frame of visual right way
+       */
+      void getVisualArea(double cur_pos_x, double cur_pos_y, double cur_pos_th, double& mid_x, double& mid_y, double& vis_left_x, double& vis_left_y, double& vis_right_x, double& vis_right_y);
+
+      /**
+       * @brief Output parameters of obstacle detectiing area
+       * @param cur_pos_x current x coordinate of vehicle
+       * @param cur_pos_y current y coordinate of vehicle
+       * @param cur_pos_th current orientation of vehicle
+       * @param mid_x x coordinate in world frame of mid way
+       * @param mid_y y coordinate in world frame of mid way
+       * @param left_x x coordinate in world frame of obstacle detecting left way
+       * @param lett_y y coordinate in world frame of obstacle detecting left way
+       * @param right_x x coordinate in world frame of obstacle detecting right way
+       * @param right_y y coordinate in world frame of obstacle detecting right way
+       */
+      void getObsDetectionArea(double cur_pos_x, double cur_pos_y, double cur_pos_th, double& mid_x, double& mid_y, double& left_x, double& left_y, double& right_x, double& right_y);
 
       /** @brief Return the footprint specification of the robot. */
       geometry_msgs::Polygon getFootprintPolygon() const { return costmap_2d::toPolygon(footprint_spec_); }
@@ -354,6 +474,16 @@ namespace base_local_planner {
       double theta_det_last_;
       double theta_det_add_;
 
+      double obs_detect_dist_;
+      double ang_for_left_;
+      double ang_for_right_;
+      double follow_vel_;
+
+      double vis_ang_for_left_;
+      double vis_ang_for_right_;
+
+      unsigned int avoid_count_;
+      AvoidOrientation last_choice_;
       boost::mutex configuration_mutex_;
 
       /**
@@ -415,7 +545,7 @@ namespace base_local_planner {
         vth = acc_lim_theta_ * std::max(time, 0.0);
       }
 
-      double lineCost(int x0, int x1, int y0, int y1);
+      double lineCost(int x0, int x1, int y0, int y1, bool mode = false);
       double pointCost(int x, int y);
       double headingDiff(int cell_x, int cell_y, double x, double y, double heading);
   };
