@@ -42,14 +42,13 @@
 #include <math.h>
 #include <angles/angles.h>
 
-
-
 #include <boost/algorithm/string.hpp>
 
 #include <ros/console.h>
 
 //for computing path distance
 #include <queue>
+#include <climits>
 
 using namespace std;
 using namespace costmap_2d;
@@ -86,6 +85,13 @@ namespace base_local_planner{
       kp_ = config.kp;
       ki_ = config.ki;
       kd_ = config.kd; 
+
+      obs_detect_dist_ = config.obs_detect_dist;
+      ang_for_left_ = config.ang_for_left;
+      ang_for_right_ = config.ang_for_right;
+
+      vis_ang_for_left_ = config.vis_ang_for_left;
+      vis_ang_for_right_ = config.vis_ang_for_right;
 
       if (meter_scoring_) {
         //if we use meter scoring, then we want to multiply the biases by the resolution of the costmap
@@ -158,7 +164,9 @@ namespace base_local_planner{
       double max_vel_th, double min_vel_th, double min_in_place_vel_th,
       double backup_vel,
       bool dwa, bool heading_scoring, double heading_scoring_timestep, bool meter_scoring, bool simple_attractor,
-      vector<double> y_vels, double stop_time_buffer, double sim_period, double angular_sim_granularity)
+      vector<double> y_vels, double stop_time_buffer, double sim_period, double angular_sim_granularity,
+      double follow_vel, double ang_for_left, double ang_for_right,
+      double obs_detect_dist, double vis_ang_for_left, double vis_ang_for_right)
     : path_map_(costmap.getSizeInCellsX(), costmap.getSizeInCellsY()),
       goal_map_(costmap.getSizeInCellsX(), costmap.getSizeInCellsY()),
       costmap_(costmap),
@@ -174,7 +182,9 @@ namespace base_local_planner{
     max_vel_th_(max_vel_th), min_vel_th_(min_vel_th), min_in_place_vel_th_(min_in_place_vel_th),
     backup_vel_(backup_vel),
     dwa_(dwa), heading_scoring_(heading_scoring), heading_scoring_timestep_(heading_scoring_timestep),
-    simple_attractor_(simple_attractor), y_vels_(y_vels), stop_time_buffer_(stop_time_buffer), sim_period_(sim_period)
+    simple_attractor_(simple_attractor), y_vels_(y_vels), stop_time_buffer_(stop_time_buffer), sim_period_(sim_period),
+    follow_vel_(follow_vel), ang_for_left_(ang_for_left), ang_for_right_(ang_for_right),
+    obs_detect_dist_(obs_detect_dist), vis_ang_for_left_(vis_ang_for_left), vis_ang_for_right_(vis_ang_for_right)
   {
     //the robot is not stuck to begin with
     stuck_left = false;
@@ -191,8 +201,9 @@ namespace base_local_planner{
 
     theta_det_last_ = 0;
     theta_det_add_ = 0;
-
-
+ 
+    avoid_count_ = 0;
+ 
     costmap_2d::calculateMinAndMaxDistances(footprint_spec_, inscribed_radius_, circumscribed_radius_);
   }
 
@@ -395,7 +406,7 @@ namespace base_local_planner{
 
   //calculate the cost of a ray-traced line
   double TrajectoryPlanner::lineCost(int x0, int x1,
-      int y0, int y1){
+      int y0, int y1, bool mode){
     //Bresenham Ray-Tracing
     int deltax = abs(x1 - x0);        // The difference between the x's
     int deltay = abs(y1 - y0);        // The difference between the y's
@@ -446,9 +457,21 @@ namespace base_local_planner{
       numadd = deltax;
       numpixels = deltay;         // There are more y-values than x-values
     }
+ 
+    // ROS_WARN("local_planner: start bresenham raytrace with %d points", numpixels);
 
     for (int curpixel = 0; curpixel <= numpixels; curpixel++) {
+      
+      // if(mode){
+      //   ROS_WARN("local_planner: check the footprint cost");
+      //   if(footprintCost(x, y, atan2(y1 - y0, x1 - x0)) < 0){
+      //    return -1;
+      //   }
+      // }
+      
+
       point_cost = pointCost(x, y); //Score the current point
+      // ROS_WARN("local_planner: cost of %d point is %f", curpixel, point_cost);
 
       if (point_cost < 0) {
         return -1;
@@ -992,10 +1015,313 @@ namespace base_local_planner{
   }
 
 
+
   void TrajectoryPlanner::getLocalGoal(double& x, double& y){
     x = path_map_.goal_x_;
     y = path_map_.goal_y_;
   }
+
+
+  void TrajectoryPlanner::outputCostOfThreePath(double cur_pos_x, double cur_pos_y, double cur_pos_th,
+                                                double& line_cost_of_mid, double& line_cost_of_left, double& line_cost_of_right){
+     // ROS_WARN("local_planner: compute line cost of TP %f, %f, %f", cur_pos_x, cur_pos_y, cur_pos_th);
+     
+     unsigned int cur_pos_x_in_map, cur_pos_y_in_map;
+     costmap_.worldToMap(cur_pos_x, cur_pos_y, cur_pos_x_in_map, cur_pos_y_in_map);
+ 
+     double x_in_mid = cur_pos_x + obs_detect_dist_ * std::cos(cur_pos_th);
+     double y_in_mid = cur_pos_y + obs_detect_dist_ * std::sin(cur_pos_th);
+     unsigned int x_in_mid_in_map, y_in_mid_in_map;
+     costmap_.worldToMap(x_in_mid, y_in_mid, x_in_mid_in_map, y_in_mid_in_map);
+     line_cost_of_mid = lineCost(cur_pos_x_in_map, x_in_mid_in_map, cur_pos_y_in_map, y_in_mid_in_map, true);
+     
+     double ang_for_left_in_rad = ang_for_left_ * PI / 180;
+     double x_in_left = cur_pos_x + obs_detect_dist_ * std::cos(cur_pos_th + ang_for_left_in_rad) / std::cos(ang_for_left_in_rad);
+     double y_in_left = cur_pos_y + obs_detect_dist_ * std::sin(cur_pos_th + ang_for_left_in_rad) / std::cos(ang_for_left_in_rad);
+     unsigned int x_in_left_in_map, y_in_left_in_map;
+     costmap_.worldToMap(x_in_left, y_in_left, x_in_left_in_map, y_in_left_in_map);
+     line_cost_of_left = lineCost(cur_pos_x_in_map, x_in_left_in_map, cur_pos_y_in_map, y_in_left_in_map, true);
+
+     double ang_for_right_in_rad = ang_for_right_ * PI / 180;
+     double x_in_right = cur_pos_x + obs_detect_dist_ * std::cos(cur_pos_th - ang_for_right_in_rad) / std::cos(ang_for_right_in_rad);
+     double y_in_right = cur_pos_y + obs_detect_dist_ * std::sin(cur_pos_th - ang_for_right_in_rad) / std::cos(ang_for_right_in_rad);
+     unsigned int x_in_right_in_map, y_in_right_in_map;
+     costmap_.worldToMap(x_in_right, y_in_right, x_in_right_in_map, y_in_right_in_map);
+     line_cost_of_right = lineCost(cur_pos_x_in_map, x_in_right_in_map, cur_pos_y_in_map, y_in_right_in_map, true);
+     
+     // ROS_WARN("local_planner: line cost of tp mid: %f, left: %f, right: %f", line_cost_of_mid, line_cost_of_left, line_cost_of_right);
+  }
+
+  bool TrajectoryPlanner::isFollowBlocked(double next_wp_x, double next_wp_y, double cur_pos_x, double cur_pos_y, double cur_pos_th ){
+    // ROS_WARN("local_planner: check is followed way blocked");
+    
+    // compute distance between currrent position of robot and next way point of planned path
+    double delt_x = std::fabs(next_wp_x - cur_pos_x);
+    double delt_y = std::fabs(next_wp_y - cur_pos_y);
+    double dist_of_next_wp = std::sqrt(delt_x * delt_x + delt_y * delt_y);
+
+    // if(dist_of_next_wp <= obs_detect_dist_){
+    if(obs_detect_dist_ <= dist_of_next_wp){
+      // ROS_WARN("local_planner: check way point");
+      // ROS_WARN("local_planner: compute line cost of wp %f, %f current %f, %f, %f", next_wp_x, next_wp_y, cur_pos_x, cur_pos_y, cur_pos_th);
+      
+      // compute line cost, if cost of line is -1, the way is blocked by obs
+      unsigned int cur_pos_x_in_map, cur_pos_y_in_map;
+      unsigned int next_pos_x_in_map, next_pos_y_in_map;
+      costmap_.worldToMap(cur_pos_x, cur_pos_y, cur_pos_x_in_map, cur_pos_y_in_map);
+      // ROS_WARN("local_planner: transform from world frame to map");
+      costmap_.worldToMap(next_wp_x, next_wp_y, next_pos_x_in_map, next_pos_y_in_map);
+      double cost_of_way = lineCost(cur_pos_x_in_map, next_pos_x_in_map, cur_pos_y_in_map, next_pos_y_in_map);
+      // ROS_WARN("local_planner: line cost of wp is %f", cost_of_way);
+      
+      return cost_of_way < 0;
+    }
+    else{
+      ///*
+       // ROS_WARN("local_planner: check mid way");
+       double next_pos_x = cur_pos_x + obs_detect_dist_ * std::cos(cur_pos_th);
+       double next_pos_y = cur_pos_y + obs_detect_dist_ * std::sin(cur_pos_th);
+       // ROS_WARN("local_planner: compute line cost of mid way %f, %f current %f, %f, %f", next_pos_x, next_pos_y, cur_pos_x, cur_pos_y, cur_pos_th);
+       unsigned int cur_pos_x_in_map, cur_pos_y_in_map;
+       unsigned int next_pos_x_in_map, next_pos_y_in_map;
+       costmap_.worldToMap(cur_pos_x, cur_pos_y, cur_pos_x_in_map, cur_pos_y_in_map);
+       // ROS_WARN("local_planner: transform from world frame to map");
+       costmap_.worldToMap(next_pos_x, next_pos_y, next_pos_x_in_map, next_pos_y_in_map);
+       double cost_of_way = lineCost(cur_pos_x_in_map, next_pos_x_in_map, cur_pos_y_in_map, next_pos_y_in_map);
+       // ROS_WARN("local_planner: line cost of mid way is %f", cost_of_way);
+     
+       return cost_of_way < 0;
+      //*/
+      // return !isFrontPathFree(cur_pos_x, cur_pos_y, cur_pos_th);
+    }
+  }
+
+  bool TrajectoryPlanner::isFrontPathFree(double cur_pos_x, double cur_pos_y, double cur_pos_th){
+     // compute line cost of mid way
+     unsigned int cur_pos_x_in_map, cur_pos_y_in_map;
+     costmap_.worldToMap(cur_pos_x, cur_pos_y, cur_pos_x_in_map, cur_pos_y_in_map);
+     double x_in_mid = cur_pos_x + obs_detect_dist_ * std::cos(cur_pos_th);
+     double y_in_mid = cur_pos_y + obs_detect_dist_ * std::sin(cur_pos_th);
+     unsigned int x_in_mid_in_map, y_in_mid_in_map;
+     costmap_.worldToMap(x_in_mid, y_in_mid, x_in_mid_in_map, y_in_mid_in_map);
+     double line_cost_of_mid = lineCost(cur_pos_x_in_map, x_in_mid_in_map, cur_pos_y_in_map, y_in_mid_in_map, true);
+
+     // compute line cost of left way of in visual scope
+     double vis_ang_for_left_in_rad = vis_ang_for_left_ * PI / 180;
+     double vis_x_in_left = cur_pos_x + obs_detect_dist_ * std::cos(cur_pos_th + vis_ang_for_left_in_rad) / std::cos(vis_ang_for_left_in_rad);
+     double vis_y_in_left = cur_pos_y + obs_detect_dist_ * std::sin(cur_pos_th + vis_ang_for_left_in_rad) / std::cos(vis_ang_for_left_in_rad);    
+     unsigned int vis_x_in_left_in_map, vis_y_in_left_in_map;
+     costmap_.worldToMap(vis_x_in_left, vis_y_in_left, vis_x_in_left_in_map, vis_y_in_left_in_map);
+     double line_cost_of_vis_left = lineCost(cur_pos_x_in_map, vis_x_in_left_in_map, cur_pos_y_in_map, vis_y_in_left_in_map, true);
+
+     // compute line cost of right way of in visual scope
+     double vis_ang_for_right_in_rad = vis_ang_for_right_ * PI / 180;
+     double vis_x_in_right = cur_pos_x + obs_detect_dist_ * std::cos(cur_pos_th - vis_ang_for_right_in_rad) / std::cos(vis_ang_for_right_in_rad);
+     double vis_y_in_right = cur_pos_y + obs_detect_dist_ * std::sin(cur_pos_th - vis_ang_for_right_in_rad) / std::cos(vis_ang_for_right_in_rad);    
+     unsigned int vis_x_in_right_in_map, vis_y_in_right_in_map;
+     costmap_.worldToMap(vis_x_in_right, vis_y_in_right, vis_x_in_right_in_map, vis_y_in_right_in_map);
+     double line_cost_of_vis_right = lineCost(cur_pos_x_in_map, vis_x_in_right_in_map, cur_pos_y_in_map, vis_y_in_right_in_map, true);
+     
+     // ROS_WARN("local_planner: line cost of visual three path mid: %f, left: %f, right: %f", line_cost_of_mid, line_cost_of_vis_left, line_cost_of_vis_right);
+     if(line_cost_of_mid >= 0){
+       return true;
+     }
+     return false;
+  }
+
+  bool TrajectoryPlanner::pointFollowWithTPMethod(double cur_pos_x, double cur_pos_y, double cur_pos_th, double& vx, double& vy, double& vth){
+     // comput cost of three path
+     double line_cost_of_mid, line_cost_of_left, line_cost_of_right;
+     outputCostOfThreePath(cur_pos_x, cur_pos_y, cur_pos_th, line_cost_of_mid, line_cost_of_left, line_cost_of_right);
+     
+     if(line_cost_of_mid == -1 && line_cost_of_left == -1 && line_cost_of_right == -1){
+       return false;
+     }
+ 
+     // transform -1 to max value
+     if(line_cost_of_mid < 0){
+       line_cost_of_mid = static_cast<double>(INT_MAX);
+     }
+     if(line_cost_of_left < 0){
+       line_cost_of_left = static_cast<double>(INT_MAX);
+     }
+     if(line_cost_of_right < 0){
+       line_cost_of_right =  static_cast<double>(INT_MAX);
+     }
+     
+     // choose strategy 
+     if(line_cost_of_left < line_cost_of_right){
+       if(line_cost_of_left < line_cost_of_mid){
+         double th_of_left = cur_pos_th - ang_for_left_ * PI / 180;
+         // ROS_WARN("local_planner: turn left");
+         pointFollowLOS(cur_pos_th - th_of_left, vx, vy, vth);
+         ++avoid_count_;
+         last_choice_ = AvoidOrientation::LEFT;
+         return true;
+       }
+       else if (line_cost_of_left == line_cost_of_mid){
+         if(avoid_count_){
+           if(last_choice_ == AvoidOrientation::LEFT){
+             double th_of_left = cur_pos_th - ang_for_left_ * PI / 180;
+             // ROS_WARN("local_planner: turn left");
+             pointFollowLOS(cur_pos_th - th_of_left, vx, vy, vth);
+             ++avoid_count_;
+             last_choice_ = AvoidOrientation::LEFT;
+           }
+           else{
+             vx = follow_vel_;
+             vy = 0; 
+             vth = 0;
+             // ROS_WARN("local_planner: go ahead");
+             ++avoid_count_;
+             last_choice_ = AvoidOrientation::MID;
+             return true;
+           }
+         }
+         else{
+           vx = follow_vel_;
+           vy = 0; 
+           vth = 0;
+           // ROS_WARN("local_planner: go ahead");
+           ++avoid_count_;
+           last_choice_ = AvoidOrientation::MID;
+           return true;
+         }
+       }
+       else{
+         vx = follow_vel_;
+         vy = 0; 
+         vth = 0;
+         // ROS_WARN("local_planner: go ahead");
+         ++avoid_count_;
+         last_choice_ = AvoidOrientation::MID;
+         return true;
+       }
+     }
+     else if(line_cost_of_left == line_cost_of_right){
+       if(avoid_count_){
+         if(last_choice_ == AvoidOrientation::RIGHT){
+           double th_of_right = cur_pos_th + ang_for_right_ * PI / 180;
+           // ROS_WARN("local_planner: turn right");
+           pointFollowLOS(cur_pos_th - th_of_right, vx, vy, vth);
+           ++avoid_count_;
+           last_choice_ = AvoidOrientation::RIGHT;
+           return true;
+         }
+         else{
+           double th_of_left = cur_pos_th - ang_for_left_ * PI / 180;
+           // ROS_WARN("local_planner: turn left");
+           pointFollowLOS(cur_pos_th - th_of_left, vx, vy, vth);
+           ++avoid_count_;
+           last_choice_ = AvoidOrientation::LEFT;
+           return true;
+         }
+       }
+       else{
+         double th_of_left = cur_pos_th - ang_for_left_ * PI / 180;
+         // ROS_WARN("local_planner: turn left");
+         pointFollowLOS(cur_pos_th - th_of_left, vx, vy, vth);
+         ++avoid_count_;
+         last_choice_ = AvoidOrientation::LEFT;
+         return true;
+       }
+     }
+     else{
+       if(line_cost_of_right < line_cost_of_mid){
+         double th_of_right = cur_pos_th + ang_for_right_ * PI / 180;
+         // ROS_WARN("local_planner: turn right");
+         pointFollowLOS(cur_pos_th - th_of_right, vx, vy, vth);
+         ++avoid_count_;
+         last_choice_ = AvoidOrientation::RIGHT;
+         return true;
+       }
+       else if(line_cost_of_right == line_cost_of_mid){
+         if(avoid_count_){
+           if(last_choice_ == AvoidOrientation::RIGHT){
+             double th_of_right = cur_pos_th + ang_for_right_ * PI / 180;
+             // ROS_WARN("local_planner: turn right");
+             pointFollowLOS(cur_pos_th - th_of_right, vx, vy, vth);
+             ++avoid_count_;
+             last_choice_ = AvoidOrientation::RIGHT;
+           }
+           else{
+             vx = follow_vel_;
+             vy = 0;
+             vth = 0;
+             // ROS_WARN("local_planner: go ahead");
+             ++avoid_count_;
+             last_choice_ = AvoidOrientation::MID;
+             return true;
+           }
+         }
+         else{
+           vx = follow_vel_;
+           vy = 0;
+           vth = 0;
+           // ROS_WARN("local planner: go ahead");
+           ++avoid_count_;
+           last_choice_ = AvoidOrientation::MID;
+           return true;
+         }
+       }
+       else{
+         vx = follow_vel_;
+         vy = 0;
+         vth = 0;
+         // ROS_WARN("local_planner: go ahead");
+         ++avoid_count_;
+         last_choice_ = AvoidOrientation::MID;
+         return true;
+       }
+     }
+     
+     /*
+     if(line_cost_of_mid >= 0 || line_cost_of_left >= 0 || line_cost_of_right >=0){
+       if(line_cost_of_left <= line_cost_of_right && line_cost_of_left >= 0){
+         if(line_cost_of_left < line_cost_of_mid){
+           double th_in_deg = cur_pos_th * 180 / PI;
+           double th_of_left = th_in_deg + ang_for_left_;
+           double th_of_left_in_rad = th_of_left * PI / 180;
+           ROS_WARN("local_planner: turn left");
+           pointFollowLOS(cur_pos_th - th_of_left_in_rad, vx, vy, vth);
+
+           return true;
+         }
+         else{
+           ROS_WARN("local_planner: go ahead");
+           vx = follow_vel_;
+           vy = 0;
+           vth = 0;
+
+           return true;
+         }
+       }
+      else{
+         if(line_cost_of_right < line_cost_of_mid && line_cost_of_right >= 0){
+           double th_in_deg = cur_pos_th * 180 / PI;
+           double th_of_right = th_in_deg - ang_for_right_;
+           double th_of_right_in_rad = th_of_right * PI / 180;
+           ROS_WARN("local_planner: turn right");
+           pointFollowLOS(cur_pos_th - th_of_right_in_rad, vx, vy, vth);
+
+           return true;
+
+         }
+         else{
+           ROS_WARN("local_planner: go ahead");
+           vx = follow_vel_;
+           vy = 0;
+           vth = 0;
+
+           return true;
+         }
+       }
+     }
+
+     return false;
+     */
+  }
+
   
   bool TrajectoryPlanner::pointFollow(double& goal_x, double& goal_y, double& goal_th, 
                                       double& x_i, double& y_i, double& th_i, 
@@ -1058,6 +1384,83 @@ namespace base_local_planner{
             vth = 0;
           }
   }
-};
 
+
+  std::vector<geometry_msgs::PoseStamped> TrajectoryPlanner::getVisualArea(double cur_pos_x, double cur_pos_y, double cur_pos_th){
+     double mid_x, mid_y, vis_left_x, vis_left_y, vis_right_x, vis_right_y;
+
+     getVisualArea(cur_pos_x, cur_pos_y, cur_pos_th, mid_x, mid_y, vis_left_x, vis_left_y, vis_right_x, vis_right_y);     
+
+     // Create pose message, notice that the frame id of messages are not given
+     geometry_msgs::PoseStamped mid, vis_left, vis_right;
+     mid.pose.position.x = mid_x;
+     mid.pose.position.y = mid_y;
+     mid.pose.orientation.w = 1.0;
+     vis_left.pose.position.x = vis_left_x;
+     vis_left.pose.position.y = vis_left_y;
+     vis_left.pose.orientation.w = 1.0;
+     vis_right.pose.position.x = vis_right_x;
+     vis_right.pose.position.y = vis_right_y;
+     vis_right.pose.orientation.w = 1.0;   
+
+     std::vector<geometry_msgs::PoseStamped> vis_pose_vec;
+     vis_pose_vec.push_back(mid);
+     vis_pose_vec.push_back(vis_left);
+     vis_pose_vec.push_back(vis_right);
+
+     return vis_pose_vec; 
+  }
+ 
+  std::vector<geometry_msgs::PoseStamped> TrajectoryPlanner::getObsDetectionArea(double cur_pos_x, double cur_pos_y, double cur_pos_th){
+     double mid_x, mid_y, obs_detect_left_x, obs_detect_left_y, obs_detect_right_x, obs_detect_right_y;
+
+     getObsDetectionArea(cur_pos_x, cur_pos_y, cur_pos_th, mid_x, mid_y, obs_detect_left_x, obs_detect_left_y, obs_detect_right_x, obs_detect_right_y);     
+
+     // Create pose message, notice that the frame id of messages are not given
+     geometry_msgs::PoseStamped mid, obs_detect_left, obs_detect_right;
+     mid.pose.position.x = mid_x;
+     mid.pose.position.y = mid_y;
+     mid.pose.orientation.w = 1.0;
+     obs_detect_left.pose.position.x = obs_detect_left_x;
+     obs_detect_left.pose.position.y = obs_detect_left_y;
+     obs_detect_left.pose.orientation.w = 1.0;
+     obs_detect_right.pose.position.x = obs_detect_right_x;
+     obs_detect_right.pose.position.y = obs_detect_right_y;
+     obs_detect_right.pose.orientation.w = 1.0;   
+
+     std::vector<geometry_msgs::PoseStamped> obs_detect_pose_vec;
+     obs_detect_pose_vec.push_back(mid);
+     obs_detect_pose_vec.push_back(obs_detect_left);
+     obs_detect_pose_vec.push_back(obs_detect_right);
+
+     return obs_detect_pose_vec; 
+  }
+  
+  void TrajectoryPlanner::getVisualArea(double cur_pos_x, double cur_pos_y, double cur_pos_th, double& mid_x, double& mid_y, double& vis_left_x, double& vis_left_y, double& vis_right_x, double& vis_right_y){
+     mid_x = cur_pos_x + obs_detect_dist_ * std::cos(cur_pos_th);
+     mid_y = cur_pos_y + obs_detect_dist_ * std::sin(cur_pos_th);
+  
+     double vis_ang_for_left_in_rad = vis_ang_for_left_ * PI / 180;
+     vis_left_x = cur_pos_x + obs_detect_dist_ * std::cos(cur_pos_th + vis_ang_for_left_in_rad) / std::cos(vis_ang_for_left_in_rad);
+     vis_left_y = cur_pos_y + obs_detect_dist_ * std::sin(cur_pos_th + vis_ang_for_left_in_rad) / std::cos(vis_ang_for_left_in_rad);
+  
+     double vis_ang_for_right_in_rad = vis_ang_for_right_ * PI / 180;
+     vis_right_x = cur_pos_x + obs_detect_dist_ * std::cos(cur_pos_th - vis_ang_for_right_in_rad) / std::cos(vis_ang_for_right_in_rad);
+     vis_right_y = cur_pos_y + obs_detect_dist_ * std::sin(cur_pos_th - vis_ang_for_right_in_rad) / std::cos(vis_ang_for_right_in_rad);
+
+  }
+  
+  void TrajectoryPlanner::getObsDetectionArea(double cur_pos_x, double cur_pos_y, double cur_pos_th, double& mid_x, double& mid_y, double& left_x, double& left_y, double& right_x, double& right_y){
+     mid_x = cur_pos_x + obs_detect_dist_ * std::cos(cur_pos_th);
+     mid_y = cur_pos_y + obs_detect_dist_ * std::sin(cur_pos_th);
+  
+     double ang_for_left_in_rad = ang_for_left_ * PI / 180;
+     left_x = cur_pos_x + obs_detect_dist_ * std::cos(cur_pos_th + ang_for_left_in_rad) / std::cos(ang_for_left_in_rad);
+     left_y = cur_pos_y + obs_detect_dist_ * std::sin(cur_pos_th + ang_for_left_in_rad) / std::cos(ang_for_left_in_rad);
+
+     double ang_for_right_in_rad = ang_for_right_ * PI / 180;
+     right_x = cur_pos_x + obs_detect_dist_ * std::cos(cur_pos_th - ang_for_right_in_rad) / std::cos(ang_for_right_in_rad);
+     right_y = cur_pos_y + obs_detect_dist_ * std::sin(cur_pos_th - ang_for_right_in_rad) / std::cos(ang_for_right_in_rad);
+  }
+};
 
