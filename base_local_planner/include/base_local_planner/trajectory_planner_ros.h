@@ -72,6 +72,9 @@
 
 #include <base_local_planner/odometry_helper_ros.h>
 
+// rviz test interface
+#include <visualization_msgs/Marker.h>
+
 namespace base_local_planner {
   /**
    * @class TrajectoryPlannerROS
@@ -107,14 +110,42 @@ namespace base_local_planner {
        * @brief  Destructor for the wrapper
        */
       ~TrajectoryPlannerROS();
-	  
-	  /**
+
+      /**
+       * @brief whether the way to follow with is blocked by obstacle
+       * @param following_wp_num index of way point in followed planned path
+       * @return True represents the followed way is blocked, otherwise returns false
+       */	  
+      bool isFollowBlocked(unsigned int following_wp_num);
+
+
+      /**
+       * @brief whether the robot can quit from state of avoidance
+       * @return True represents robot can switch state of avoiding to planning
+       */
+      bool isStopAvoidance();
+
+      /**
+       * @brief Compute velocity command in state of avoiding
+       * @param cmd_vel Used to store computed velocity command
+       * @return Ture if a valid command was computed, false otherwise
+       */
+      bool computeVelCommandsInStateOfAvoid(geometry_msgs::Twist& cmd_vel, unsigned int& following_wp_num);
+
+      /**
+       * @brief Compute velocity command in state of avoiding
+       * @param next_goal Will be filled with message of next goal and passed to the robot base
+       * @return Ture if a valid command was computed, false otherwise
+       */
+      bool computeVelCommandsInStateOfAvoid(geometry_msgs::PoseStamped& next_goal, unsigned int& following_wp_num);
+
+      /**
        * @brief  Given the current position, orientation, and velocity of the robot,
        * compute velocity commands to send to the base 
        * @param cmd_vel Will be filled with the velocity command to be passed to the robot base
        * @return True if a valid trajectory was found, false otherwise
        */
-      bool computeVelocityCommandsInStateFollowing(geometry_msgs::Twist& cmd_vel, unsigned int& following_wp_num);
+      bool computeVelCommandsInStateOfFollow(geometry_msgs::Twist& cmd_vel, unsigned int& following_wp_num);
       
       /**
        * @brief  Given the current position, orientation, and velocity of the robot,
@@ -172,6 +203,14 @@ namespace base_local_planner {
 
     private:
       /**
+       * @brief type for visualization test 
+       */
+      enum class VisAreaType{
+        VISUALAREA,
+        OBSDETECTAREA
+      };
+
+      /**
        * @brief Callback to update the local planner's parameters based on dynamic reconfigure
        */
       void reconfigureCB(BaseLocalPlannerConfig &config, uint32_t level);
@@ -200,6 +239,10 @@ namespace base_local_planner {
       double sign(double x){
         return x < 0.0 ? -1.0 : 1.0;
       }
+
+      // rviz test interface
+      void getLineVisMsgs(double sp_x, double sp_y, double ep_x, double ep_y, visualization_msgs::Marker& line_msgs, VisAreaType vis_area_type);
+      void getLineVisMsgs(double sp_x, double sp_y,  geometry_msgs::PoseStamped e_pos, visualization_msgs::Marker& line_msgs, VisAreaType vis_area_type);
 
       WorldModel* world_model_; ///< @brief The world model that the controller will use
       TrajectoryPlanner* tc_; ///< @brief The trajectory controller
@@ -241,6 +284,12 @@ namespace base_local_planner {
       ros::Publisher test_wp_index_;
       ros::Publisher test_goal_;
       ros::Publisher test_robot_pos_;
+       
+      ros::Publisher test_mid_pub_;
+      ros::Publisher test_vis_left_pub_;
+      ros::Publisher test_vis_right_pub_;
+      ros::Publisher test_obs_detect_left_pub_;
+      ros::Publisher test_obs_detect_right_pub_;
   };
 };
 #endif
