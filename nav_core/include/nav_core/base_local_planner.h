@@ -49,14 +49,35 @@ namespace nav_core {
    */
   class BaseLocalPlanner{
     public:
+ 
+      virtual bool isStopAvoidance() = 0;
+ 
+      virtual bool isFollowBlocked(unsigned int following_up_num) = 0; 
+
+      /**
+       * @brief local planner should provide interface to compute velocity commands in state of following
+       * @param cmd_vel Variety to store computed result
+       * @param following_wp_num index of followed way point of planned path
+       * @return if no error in computation
+       */
+      virtual bool computeVelCommandsInStateOfFollow(geometry_msgs::Twist& cmd_vel, unsigned int& following_wp_num) = 0;
+
+      /**
+       * @brief local planner should provide interface to compute velocity commands in state of avoiding
+       * @param cmd_vel Variety to store computed result 
+       * @param following_wp_num index of followed way point of planned path
+       * @return if no error in computation
+       */
+      virtual bool computeVelCommandsInStateOfAvoid(geometry_msgs::Twist&
+ cmd_vel, unsigned int& following_wp_num) = 0;
+
       /**
        * @brief  Given the current position, orientation, and velocity of the robot, compute velocity commands to send to the base
        * @param cmd_vel Will be filled with the velocity command to be passed to the robot base
        * @return True if a valid velocity command was found, false otherwise
        */
       virtual bool computeVelocityCommands(geometry_msgs::Twist& cmd_vel) = 0;
-	  
-	  virtual bool computeVelocityCommandsInStateFollowing(geometry_msgs::Twist& cmd_vel, unsigned int& following_wp_num) = 0;
+
 
       /**
        * @brief  Check if the goal pose has been achieved by the local planner
