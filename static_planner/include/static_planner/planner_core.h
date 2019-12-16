@@ -16,6 +16,7 @@
 #include <static_planner/planner.h>
 #include <static_planner/orientation_filter.h>
 #include <static_planner/StaticPlannerConfig.h>
+#include <static_planner/bspline_filter.h>
 
 namespace static_planner {
 
@@ -82,6 +83,11 @@ class StaticPlanner : public nav_core::BaseGlobalPlanner {
          */
         void publishPlan(const std::vector<geometry_msgs::PoseStamped>& path);
 
+        /**
+         * @brief Publish filtered plan for visualization purpose
+         */
+        void publishFilteredPlan(const std::vector<geometry_msgs::PoseStamped>& path);
+
         bool makePlanService(nav_msgs::GetPlan::Request& req, nav_msgs::GetPlan::Response& resp);
 
     protected:
@@ -92,6 +98,8 @@ class StaticPlanner : public nav_core::BaseGlobalPlanner {
         costmap_2d::Costmap2D* costmap_;
         std::string frame_id_;
         ros::Publisher plan_pub_;
+        ros::Publisher filtered_plan_pub_;
+ 
         bool initialized_, allow_unknown_;
 
     private:
@@ -99,7 +107,8 @@ class StaticPlanner : public nav_core::BaseGlobalPlanner {
         bool worldToMap(double wx, double wy, double& mx, double& my);
         void clearRobotCell(const tf::Stamped<tf::Pose>& global_pose, unsigned int mx, unsigned int my);
         // void publishPotential(float* potential);
-		bool getPlan(const geometry_msgs::PoseStamped& goal, std::vector< std::pair<float, float> >& path, std::vector<geometry_msgs::PoseStamped>& plan);
+	bool getPlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal, 
+                     std::vector< std::pair<float, float> >& path, std::vector<geometry_msgs::PoseStamped>& plan);
 		void reconfigureCB(static_planner::StaticPlannerConfig &config, uint32_t level);
 		void outlineMap(unsigned char* costarr, int nx, int ny, unsigned char value);
 		
@@ -122,8 +131,13 @@ class StaticPlanner : public nav_core::BaseGlobalPlanner {
         unsigned int start_x_, start_y_, end_x_, end_y_;
 
         bool old_navfn_behavior_;
-		bool use_orientation_filter_;
-		
+	bool use_orientation_filter_;
+	
+        bool use_bspline_filter_; 
+
+        int scalling_factor_;      
+        double interpolation_interval_;
+ 	
         float convert_offset_;
 
         dynamic_reconfigure::Server<static_planner::StaticPlannerConfig> *dsrv_;
