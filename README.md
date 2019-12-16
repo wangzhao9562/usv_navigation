@@ -6,10 +6,11 @@ Modified the global base planner interface for advanced A* which considers the o
 
 Origin navigation stack: https://github.com/ros-planning/navigation
 
-Address of simulation package: 
+Address of simulation package: https://github.com/wangzhao9562/my_nav_test
 
 Simulation with turtlebot: 
-Find responding ros package from https://github.com/turtlebot and compile it in catkin space or install them through "sudo apt-get install ros-ros_version-turtlebot*"
+Find responding ros package from https://github.com/turtlebot and compile it in catkin space 
+or sudo apt-get install ros-ros_version-turtlebot*
 
 Notice: 
 1. For using existed simulation tools and third-part libraries, name of package is not modifed to satiesfy with the demand of interface, 
