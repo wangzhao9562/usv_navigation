@@ -27,7 +27,7 @@ class CostmapWrapper{
 		void initialize(unsigned char* costs, int position_index, int lethal_cost, int map_w, int map_h, double rough_len_world, double resolution, bool unknown);
 		
 		void initialize();
-		
+  	
 		int* getNewCosts()const{
 			if(is_initialized_)
 				return new_costs_;
@@ -98,7 +98,7 @@ class CostmapWrapper{
          * @Param index input index
          * @return coordination in costmap
          */	
-		std::pair<int, int> getCoordInNewCostmap(int index);
+	std::pair<int, int> getCoordInNewCostmap(int index);
 	
 	private:
 	    /* 
@@ -107,7 +107,7 @@ class CostmapWrapper{
          * @return cost of window
          */
 	    // int getCostOfWindow(int index);
-	    int getCostOfWindow(int x, int y);	
+	 int getCostOfWindow(int x, int y);	
 		/* 
          * @breif transform cost in costmap into 0 or 1
          * @Param index index of point
