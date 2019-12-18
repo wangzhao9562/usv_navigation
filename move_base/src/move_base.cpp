@@ -508,6 +508,16 @@ namespace move_base {
     cmd_vel.linear.y = 0.0;
     cmd_vel.angular.z = 0.0;
     vel_pub_.publish(cmd_vel);
+
+    geometry_msgs::PoseStamped next_goal;
+    next_goal.pose.position.x = 0; 
+    next_goal.pose.position.y = 0;
+    next_goal.pose.position.z = -1;
+    next_goal.pose.orientation.x = 0;
+    next_goal.pose.orientation.y = 0;
+    next_goal.pose.orientation.z = 0;
+    next_goal.pose.orientation.w = 1;
+    next_pos_pub_.publish(next_goal);
   }
 
   bool MoveBase::isQuaternionValid(const geometry_msgs::Quaternion& q){
@@ -934,13 +944,13 @@ namespace move_base {
           else{
             boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(planner_costmap_ros_->getCostmap()->getMutex()));
             // if compute successfully, publish the command
-            if(tc_->computeVelCommandsInStateOfAvoid(cmd_vel, follow_waypoint_index_)){
-            // if(tc_->computeVelCommandsInStateOfAvoid(next_goal, follow_waypoint_index)){ 
+            if(tc_->computeVelCommandsInStateOfAvoid(cmd_vel, next_goal, follow_waypoint_index_)){
               ROS_INFO("move_base", "Got a valid command from the local planner in state of avoiding: %.3lf, %.3lf, %.3lf", cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z);
               ROS_DEBUG_NAMED("move_base", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf", cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z);
               last_valid_control_ = ros::Time::now();
-              vel_pub_.publish(cmd_vel);
-              // next_pos_pub_.publish(next_goal);
+              vel_pub_.publish(cmd_vel); // publish velocity message
+              next_pos_pub_.publish(next_goal); // publish goal message
+ 
               if(recovery_trigger_ == CONTROLLING_R)
                 recovery_index_ = 0;
               }
@@ -996,7 +1006,7 @@ namespace move_base {
 	    state_ = AVOIDING;
 	}
         else{
-            if(tc_->computeVelCommandsInStateOfFollow(cmd_vel, follow_waypoint_index_)){ 
+            if(tc_->computeVelCommandsInStateOfFollow(cmd_vel, next_goal, follow_waypoint_index_)){ 
               ROS_INFO( "move_base", "Got a valid command from the local planner in state of following: %.3lf, %.3lf, %.3lf",
                                      cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z);
               ROS_DEBUG_NAMED( "move_base", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf",
@@ -1005,6 +1015,7 @@ namespace move_base {
               
               //make sure that we send the velocity command to the base
               vel_pub_.publish(cmd_vel);
+              next_pos_pub_.publish(next_goal);
 	    }
             else{
               ROS_DEBUG_NAMED("move_base", "The local planner could not find a valid global plan");
