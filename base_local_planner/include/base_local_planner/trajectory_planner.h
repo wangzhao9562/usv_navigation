@@ -267,20 +267,11 @@ namespace base_local_planner {
        * @param vx variety to store compute result of x velocity
        * @param vy variety to store compute result of y velocity
        * @param vth variety to store compute result of angular velocity
+       * @param goal_x X coordinate of goal
+       * @param goal_y Y coordinate of goal
        * @return is there any error in computation
        */
-      bool pointFollowWithTPMethod(double cur_pos_x, double cur_pos_y, double cur_pos_th, double& vx, double& vy, double& vth);
-
-      /**
-       * @brief follow point with TP method
-       * @param cur_pos_x x coordinate of current position
-       * @param cur_pos_y y coordinate of current position
-       * @param cur_pos_th orientation of current position
-       * @param goal_x Will be filled with message of x coordinate of next goal
-       * @param goal_y Will be filled with message of y coordinate of next goal
-       * @return is there any error in computation
-       */
-      bool pointFollowWithTPMethod(double cur_pos_x, double cur_pos_y, double cur_pos_th, double& goal_x, double& goal_y);
+      bool pointFollowWithTPMethod(double cur_pos_x, double cur_pos_y, double cur_pos_th, double& vx, double& vy, double& vth, double& goal_x, double& goal_y);
 	  
       /**
        * @brief  LOS point following logical
