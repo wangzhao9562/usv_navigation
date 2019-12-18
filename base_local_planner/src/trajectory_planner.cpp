@@ -471,7 +471,6 @@ namespace base_local_planner{
       
 
       point_cost = pointCost(x, y); //Score the current point
-      // ROS_WARN("local_planner: cost of %d point is %f", curpixel, point_cost);
 
       if (point_cost < 0) {
         return -1;
@@ -1024,7 +1023,7 @@ namespace base_local_planner{
 
   void TrajectoryPlanner::outputCostOfThreePath(double cur_pos_x, double cur_pos_y, double cur_pos_th,
                                                 double& line_cost_of_mid, double& line_cost_of_left, double& line_cost_of_right){
-     // ROS_WARN("local_planner: compute line cost of TP %f, %f, %f", cur_pos_x, cur_pos_y, cur_pos_th);
+     // ROS_INFO("local_planner: compute line cost of TP %f, %f, %f", cur_pos_x, cur_pos_y, cur_pos_th);
      
      unsigned int cur_pos_x_in_map, cur_pos_y_in_map;
      costmap_.worldToMap(cur_pos_x, cur_pos_y, cur_pos_x_in_map, cur_pos_y_in_map);
@@ -1049,12 +1048,10 @@ namespace base_local_planner{
      costmap_.worldToMap(x_in_right, y_in_right, x_in_right_in_map, y_in_right_in_map);
      line_cost_of_right = lineCost(cur_pos_x_in_map, x_in_right_in_map, cur_pos_y_in_map, y_in_right_in_map, true);
      
-     // ROS_WARN("local_planner: line cost of tp mid: %f, left: %f, right: %f", line_cost_of_mid, line_cost_of_left, line_cost_of_right);
+     // ROS_INFO("local_planner: line cost of tp mid: %f, left: %f, right: %f", line_cost_of_mid, line_cost_of_left, line_cost_of_right);
   }
 
   bool TrajectoryPlanner::isFollowBlocked(double next_wp_x, double next_wp_y, double cur_pos_x, double cur_pos_y, double cur_pos_th ){
-    // ROS_WARN("local_planner: check is followed way blocked");
-    
     // compute distance between currrent position of robot and next way point of planned path
     double delt_x = std::fabs(next_wp_x - cur_pos_x);
     double delt_y = std::fabs(next_wp_y - cur_pos_y);
@@ -1062,37 +1059,28 @@ namespace base_local_planner{
 
     // if(dist_of_next_wp <= obs_detect_dist_){
     if(obs_detect_dist_ <= dist_of_next_wp){
-      // ROS_WARN("local_planner: check way point");
-      // ROS_WARN("local_planner: compute line cost of wp %f, %f current %f, %f, %f", next_wp_x, next_wp_y, cur_pos_x, cur_pos_y, cur_pos_th);
+      // ROS_INFO("local_planner: compute line cost of wp %f, %f current %f, %f, %f", next_wp_x, next_wp_y, cur_pos_x, cur_pos_y, cur_pos_th);
       
       // compute line cost, if cost of line is -1, the way is blocked by obs
       unsigned int cur_pos_x_in_map, cur_pos_y_in_map;
       unsigned int next_pos_x_in_map, next_pos_y_in_map;
       costmap_.worldToMap(cur_pos_x, cur_pos_y, cur_pos_x_in_map, cur_pos_y_in_map);
-      // ROS_WARN("local_planner: transform from world frame to map");
       costmap_.worldToMap(next_wp_x, next_wp_y, next_pos_x_in_map, next_pos_y_in_map);
       double cost_of_way = lineCost(cur_pos_x_in_map, next_pos_x_in_map, cur_pos_y_in_map, next_pos_y_in_map);
-      // ROS_WARN("local_planner: line cost of wp is %f", cost_of_way);
       
       return cost_of_way < 0;
     }
     else{
-      ///*
-       // ROS_WARN("local_planner: check mid way");
        double next_pos_x = cur_pos_x + obs_detect_dist_ * std::cos(cur_pos_th);
        double next_pos_y = cur_pos_y + obs_detect_dist_ * std::sin(cur_pos_th);
-       // ROS_WARN("local_planner: compute line cost of mid way %f, %f current %f, %f, %f", next_pos_x, next_pos_y, cur_pos_x, cur_pos_y, cur_pos_th);
+       // ROS_INFO("local_planner: compute line cost of mid way %f, %f current %f, %f, %f", next_pos_x, next_pos_y, cur_pos_x, cur_pos_y, cur_pos_th);
        unsigned int cur_pos_x_in_map, cur_pos_y_in_map;
        unsigned int next_pos_x_in_map, next_pos_y_in_map;
        costmap_.worldToMap(cur_pos_x, cur_pos_y, cur_pos_x_in_map, cur_pos_y_in_map);
-       // ROS_WARN("local_planner: transform from world frame to map");
        costmap_.worldToMap(next_pos_x, next_pos_y, next_pos_x_in_map, next_pos_y_in_map);
        double cost_of_way = lineCost(cur_pos_x_in_map, next_pos_x_in_map, cur_pos_y_in_map, next_pos_y_in_map);
-       // ROS_WARN("local_planner: line cost of mid way is %f", cost_of_way);
-     
+       
        return cost_of_way < 0;
-      //*/
-      // return !isFrontPathFree(cur_pos_x, cur_pos_y, cur_pos_th);
     }
   }
 
@@ -1122,14 +1110,14 @@ namespace base_local_planner{
      costmap_.worldToMap(vis_x_in_right, vis_y_in_right, vis_x_in_right_in_map, vis_y_in_right_in_map);
      double line_cost_of_vis_right = lineCost(cur_pos_x_in_map, vis_x_in_right_in_map, cur_pos_y_in_map, vis_y_in_right_in_map, true);
      
-     // ROS_WARN("local_planner: line cost of visual three path mid: %f, left: %f, right: %f", line_cost_of_mid, line_cost_of_vis_left, line_cost_of_vis_right);
+     // ROS_INFO("local_planner: line cost of visual three path mid: %f, left: %f, right: %f", line_cost_of_mid, line_cost_of_vis_left, line_cost_of_vis_right);
      if(line_cost_of_mid >= 0){
        return true;
      }
      return false;
   }
 
-  bool TrajectoryPlanner::pointFollowWithTPMethod(double cur_pos_x, double cur_pos_y, double cur_pos_th, double& vx, double& vy, double& vth){
+  bool TrajectoryPlanner::pointFollowWithTPMethod(double cur_pos_x, double cur_pos_y, double cur_pos_th, double& vx, double& vy, double& vth, double& goal_x, double& goal_y){
      // comput cost of three path
      double line_cost_of_mid, line_cost_of_left, line_cost_of_right;
      outputCostOfThreePath(cur_pos_x, cur_pos_y, cur_pos_th, line_cost_of_mid, line_cost_of_left, line_cost_of_right);
@@ -1148,13 +1136,18 @@ namespace base_local_planner{
      if(line_cost_of_right < 0){
        line_cost_of_right =  static_cast<double>(INT_MAX);
      }
-     
+  
+     // get all possible terminal point
+     double mid_x, mid_y, left_x, left_y, right_x, right_y;
+     getObsDetectionArea(cur_pos_x, cur_pos_y, cur_pos_th, mid_x, mid_y, left_x, left_y, right_x, right_y);
+   
      // choose strategy 
      if(line_cost_of_left < line_cost_of_right){
        if(line_cost_of_left < line_cost_of_mid){
          double th_of_left = cur_pos_th - ang_for_left_ * PI / 180;
-         // ROS_WARN("local_planner: turn left");
          pointFollowLOS(cur_pos_th - th_of_left, vx, vy, vth);
+         goal_x = left_x;
+         goal_y = left_y;
          ++avoid_count_;
          last_choice_ = AvoidOrientation::LEFT;
          return true;
@@ -1163,8 +1156,9 @@ namespace base_local_planner{
          if(avoid_count_){
            if(last_choice_ == AvoidOrientation::LEFT){
              double th_of_left = cur_pos_th - ang_for_left_ * PI / 180;
-             // ROS_WARN("local_planner: turn left");
              pointFollowLOS(cur_pos_th - th_of_left, vx, vy, vth);
+             goal_x = left_x;
+             goal_y = left_y;
              ++avoid_count_;
              last_choice_ = AvoidOrientation::LEFT;
            }
@@ -1172,7 +1166,8 @@ namespace base_local_planner{
              vx = follow_vel_;
              vy = 0; 
              vth = 0;
-             // ROS_WARN("local_planner: go ahead");
+             goal_x = mid_x;
+             goal_y = mid_y;
              ++avoid_count_;
              last_choice_ = AvoidOrientation::MID;
              return true;
@@ -1182,7 +1177,8 @@ namespace base_local_planner{
            vx = follow_vel_;
            vy = 0; 
            vth = 0;
-           // ROS_WARN("local_planner: go ahead");
+           goal_x = mid_x;
+           goal_y = mid_y;
            ++avoid_count_;
            last_choice_ = AvoidOrientation::MID;
            return true;
@@ -1192,7 +1188,8 @@ namespace base_local_planner{
          vx = follow_vel_;
          vy = 0; 
          vth = 0;
-         // ROS_WARN("local_planner: go ahead");
+         goal_x = mid_x;
+         goal_y = mid_y;
          ++avoid_count_;
          last_choice_ = AvoidOrientation::MID;
          return true;
@@ -1202,16 +1199,18 @@ namespace base_local_planner{
        if(avoid_count_){
          if(last_choice_ == AvoidOrientation::RIGHT){
            double th_of_right = cur_pos_th + ang_for_right_ * PI / 180;
-           // ROS_WARN("local_planner: turn right");
            pointFollowLOS(cur_pos_th - th_of_right, vx, vy, vth);
+           goal_x = right_x;
+           goal_y = right_y;
            ++avoid_count_;
            last_choice_ = AvoidOrientation::RIGHT;
            return true;
          }
          else{
            double th_of_left = cur_pos_th - ang_for_left_ * PI / 180;
-           // ROS_WARN("local_planner: turn left");
            pointFollowLOS(cur_pos_th - th_of_left, vx, vy, vth);
+           goal_x = left_x;
+           goal_y = left_y;
            ++avoid_count_;
            last_choice_ = AvoidOrientation::LEFT;
            return true;
@@ -1219,8 +1218,9 @@ namespace base_local_planner{
        }
        else{
          double th_of_left = cur_pos_th - ang_for_left_ * PI / 180;
-         // ROS_WARN("local_planner: turn left");
          pointFollowLOS(cur_pos_th - th_of_left, vx, vy, vth);
+         goal_x = left_x; 
+         goal_y = left_y;
          ++avoid_count_;
          last_choice_ = AvoidOrientation::LEFT;
          return true;
@@ -1229,8 +1229,9 @@ namespace base_local_planner{
      else{
        if(line_cost_of_right < line_cost_of_mid){
          double th_of_right = cur_pos_th + ang_for_right_ * PI / 180;
-         // ROS_WARN("local_planner: turn right");
          pointFollowLOS(cur_pos_th - th_of_right, vx, vy, vth);
+         goal_x = right_x;
+         goal_y = right_y;
          ++avoid_count_;
          last_choice_ = AvoidOrientation::RIGHT;
          return true;
@@ -1239,8 +1240,9 @@ namespace base_local_planner{
          if(avoid_count_){
            if(last_choice_ == AvoidOrientation::RIGHT){
              double th_of_right = cur_pos_th + ang_for_right_ * PI / 180;
-             // ROS_WARN("local_planner: turn right");
              pointFollowLOS(cur_pos_th - th_of_right, vx, vy, vth);
+             goal_x = right_x;
+             goal_y = right_y;
              ++avoid_count_;
              last_choice_ = AvoidOrientation::RIGHT;
            }
@@ -1248,7 +1250,8 @@ namespace base_local_planner{
              vx = follow_vel_;
              vy = 0;
              vth = 0;
-             // ROS_WARN("local_planner: go ahead");
+             goal_x = mid_x;
+             goal_y = mid_y;
              ++avoid_count_;
              last_choice_ = AvoidOrientation::MID;
              return true;
@@ -1258,7 +1261,8 @@ namespace base_local_planner{
            vx = follow_vel_;
            vy = 0;
            vth = 0;
-           // ROS_WARN("local planner: go ahead");
+           goal_x = mid_x;
+           goal_y = mid_y;
            ++avoid_count_;
            last_choice_ = AvoidOrientation::MID;
            return true;
@@ -1268,58 +1272,13 @@ namespace base_local_planner{
          vx = follow_vel_;
          vy = 0;
          vth = 0;
-         // ROS_WARN("local_planner: go ahead");
+         goal_x = mid_x;
+         goal_y = mid_y;
          ++avoid_count_;
          last_choice_ = AvoidOrientation::MID;
          return true;
        }
      }
-     
-     /*
-     if(line_cost_of_mid >= 0 || line_cost_of_left >= 0 || line_cost_of_right >=0){
-       if(line_cost_of_left <= line_cost_of_right && line_cost_of_left >= 0){
-         if(line_cost_of_left < line_cost_of_mid){
-           double th_in_deg = cur_pos_th * 180 / PI;
-           double th_of_left = th_in_deg + ang_for_left_;
-           double th_of_left_in_rad = th_of_left * PI / 180;
-           ROS_WARN("local_planner: turn left");
-           pointFollowLOS(cur_pos_th - th_of_left_in_rad, vx, vy, vth);
-
-           return true;
-         }
-         else{
-           ROS_WARN("local_planner: go ahead");
-           vx = follow_vel_;
-           vy = 0;
-           vth = 0;
-
-           return true;
-         }
-       }
-      else{
-         if(line_cost_of_right < line_cost_of_mid && line_cost_of_right >= 0){
-           double th_in_deg = cur_pos_th * 180 / PI;
-           double th_of_right = th_in_deg - ang_for_right_;
-           double th_of_right_in_rad = th_of_right * PI / 180;
-           ROS_WARN("local_planner: turn right");
-           pointFollowLOS(cur_pos_th - th_of_right_in_rad, vx, vy, vth);
-
-           return true;
-
-         }
-         else{
-           ROS_WARN("local_planner: go ahead");
-           vx = follow_vel_;
-           vy = 0;
-           vth = 0;
-
-           return true;
-         }
-       }
-     }
-
-     return false;
-     */
   }
 
   
