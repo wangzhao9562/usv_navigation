@@ -130,14 +130,7 @@ namespace base_local_planner {
        * @param cmd_vel Used to store computed velocity command
        * @return Ture if a valid command was computed, false otherwise
        */
-      bool computeVelCommandsInStateOfAvoid(geometry_msgs::Twist& cmd_vel, unsigned int& following_wp_num);
-
-      /**
-       * @brief Compute velocity command in state of avoiding
-       * @param next_goal Will be filled with message of next goal and passed to the robot base
-       * @return Ture if a valid command was computed, false otherwise
-       */
-      bool computeVelCommandsInStateOfAvoid(geometry_msgs::PoseStamped& next_goal, unsigned int& following_wp_num);
+      bool computeVelCommandsInStateOfAvoid(geometry_msgs::Twist& cmd_vel, geometry_msgs::PoseStamped& goal, unsigned int& following_wp_num);
 
       /**
        * @brief  Given the current position, orientation, and velocity of the robot,
@@ -145,7 +138,7 @@ namespace base_local_planner {
        * @param cmd_vel Will be filled with the velocity command to be passed to the robot base
        * @return True if a valid trajectory was found, false otherwise
        */
-      bool computeVelCommandsInStateOfFollow(geometry_msgs::Twist& cmd_vel, unsigned int& following_wp_num);
+      bool computeVelCommandsInStateOfFollow(geometry_msgs::Twist& cmd_vel, geometry_msgs::PoseStamped& goal, unsigned int& following_wp_num);
       
       /**
        * @brief  Given the current position, orientation, and velocity of the robot,
@@ -290,6 +283,8 @@ namespace base_local_planner {
       ros::Publisher test_vis_right_pub_;
       ros::Publisher test_obs_detect_left_pub_;
       ros::Publisher test_obs_detect_right_pub_;
+  
+      bool is_usv_mode_;
   };
 };
 #endif
