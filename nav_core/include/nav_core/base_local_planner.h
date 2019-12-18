@@ -57,19 +57,21 @@ namespace nav_core {
       /**
        * @brief local planner should provide interface to compute velocity commands in state of following
        * @param cmd_vel Variety to store computed result
+       * @param next_goal Goal point
        * @param following_wp_num index of followed way point of planned path
        * @return if no error in computation
        */
-      virtual bool computeVelCommandsInStateOfFollow(geometry_msgs::Twist& cmd_vel, unsigned int& following_wp_num) = 0;
+      virtual bool computeVelCommandsInStateOfFollow(geometry_msgs::Twist& cmd_vel, geometry_msgs::PoseStamped& next_goal, unsigned int& following_wp_num) = 0;
 
       /**
        * @brief local planner should provide interface to compute velocity commands in state of avoiding
        * @param cmd_vel Variety to store computed result 
+       * @param next_goal Goal point
        * @param following_wp_num index of followed way point of planned path
        * @return if no error in computation
        */
       virtual bool computeVelCommandsInStateOfAvoid(geometry_msgs::Twist&
- cmd_vel, unsigned int& following_wp_num) = 0;
+ cmd_vel, geometry_msgs::PoseStamped& nexdt_goal,  unsigned int& following_wp_num) = 0;
 
       /**
        * @brief  Given the current position, orientation, and velocity of the robot, compute velocity commands to send to the base
