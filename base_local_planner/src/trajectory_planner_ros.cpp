@@ -138,7 +138,8 @@ namespace base_local_planner {
       private_nh.param("stop_time_buffer", stop_time_buffer, 0.2);
 
       private_nh.param("latch_xy_goal_tolerance", latch_xy_goal_tolerance_, false);
-
+      private_nh.param("usv_mode", is_usv_mode_, false);
+   
       //Since I screwed up nicely in my documentation, I'm going to add errors
       //informing the user if they've set one of the wrong parameters
       if(private_nh.hasParam("acc_limit_x"))
@@ -397,32 +398,30 @@ namespace base_local_planner {
   }
   
   bool TrajectoryPlannerROS::isFollowBlocked(unsigned int following_wp_num){
-    ROS_INFO("Check before avoiding");
     if (! isInitialized()){
       ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
       return false;
     }
-    ROS_INFO("bad_alloc: try get robot pose");
+    // ROS_INFO("bad_alloc: try get robot pose");
     tf::Stamped<tf::Pose> global_pose;
     if(!costmap_ros_->getRobotPose(global_pose)){
         return false;
     }
-    ROS_INFO("bad_alloc: try transform pose to global frame");
+    // ROS_INFO("bad_alloc: try transform pose to global frame");
     std::vector<geometry_msgs::PoseStamped> transformed_plan;
     if(!transformGlobalPlan(*tf_, global_plan_, global_pose, *costmap_, global_frame_, transformed_plan)){
       ROS_WARN("Could not transform the global plan to the frame of the controller");
       return false;
     }
-    ROS_INFO("bad_alloc: test is the transformed plan empty");
+    // ROS_INFO("bad_alloc: test is the transformed plan empty");
     //if the global plan passed in is empty... we won't do anything
     if(transformed_plan.empty()){
-      ROS_WARN("move_base: global plan is empty!");
       return false;
     }
 
     tf::Stamped<tf::Pose> goal_point;
 
-    ROS_INFO("bad_alloc: try transform pose to tf msg from pose msg");
+    // ROS_INFO("bad_alloc: try transform pose to tf msg from pose msg");
 
     try{
       tf::poseStampedMsgToTF(transformed_plan[following_wp_num], goal_point);
@@ -443,7 +442,7 @@ namespace base_local_planner {
     double pos_th = tf::getYaw(global_pose.getRotation());
     // double pos_th = global_pose.getRotation();
 
-    ROS_INFO("bad_alloc: try publish rviz visualization parameters");
+    // ROS_INFO("bad_alloc: try publish rviz visualization parameters");
     /*
     // rviz test(abandon)
     double mid_x, mid_y, vis_left_x, vis_left_y, vis_right_x, vis_right_y;
@@ -498,12 +497,10 @@ namespace base_local_planner {
     test_obs_detect_left_pub_.publish(obs_left_line);
     test_obs_detect_right_pub_.publish(obs_right_line);
     
-    ROS_INFO("bad_alloc: is follow blocked");
+    // ROS_INFO("bad_alloc: is follow blocked");
     if(!tc_->isFollowBlocked(goal_x, goal_y, pos_x, pos_y, pos_th)){
-      // ROS_WARN("move_base: no block in followed way");
       return false;
     }
-    // ROS_WARN("move_base: blocked in followed way");
     return true;
   }
  
@@ -531,8 +528,8 @@ namespace base_local_planner {
     return false;
   }
 
-  bool TrajectoryPlannerROS::computeVelCommandsInStateOfAvoid(geometry_msgs::Twist& cmd_vel, unsigned int& following_wp_num){
-    ROS_INFO("Check before avoiding");
+
+  bool TrajectoryPlannerROS::computeVelCommandsInStateOfAvoid(geometry_msgs::Twist& cmd_vel, geometry_msgs::PoseStamped& next_goal, unsigned int& following_wp_num){
     if (! isInitialized()) {
       ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
       return false;
@@ -547,32 +544,10 @@ namespace base_local_planner {
     double pos_y = global_pose.getOrigin().getY();
     double pos_th = tf::getYaw(global_pose.getRotation());
 
-    if(tc_->pointFollowWithTPMethod(pos_x, pos_y, pos_th, cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z)){
-      following_wp_num = 1;
-    }
-    else{
-      return false;
-    }
-    return true;
-  }
+    next_goal.header.frame_id = global_frame_;
+    next_goal.header.stamp = ros::Time::now();
 
-  bool TrajectoryPlannerROS::computeVelCommandsInStateOfAvoid(geometry_msgs::PoseStamped& next_goal, unsigned int& following_wp_num){
-    ROS_INFO("Check before avoiding");
-    if (! isInitialized()) {
-      ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
-      return false;
-    }
-    tf::Stamped<tf::Pose> global_pose;
-    if(!costmap_ros_->getRobotPose(global_pose)){
-        return false;
-    }
-
-    // get current position of robot
-    double pos_x = global_pose.getOrigin().getX();
-    double pos_y = global_pose.getOrigin().getY();
-    double pos_th = tf::getYaw(global_pose.getRotation());
-
-    if(tc_->pointFollowWithTPMethod(pos_x, pos_y, pos_th, next_goal.pose.position.x, next_goal.pose.position.y)){
+    if(tc_->pointFollowWithTPMethod(pos_x, pos_y, pos_th, cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z, next_goal.pose.position.x, next_goal.pose.position.y)){
       following_wp_num = 1;
     }
     else{
@@ -581,8 +556,7 @@ namespace base_local_planner {
     return true;
   }
   
-  bool TrajectoryPlannerROS::computeVelCommandsInStateOfFollow(geometry_msgs::Twist& cmd_vel, unsigned int& following_wp_num){
-    ROS_INFO("Checking before follow");	
+  bool TrajectoryPlannerROS::computeVelCommandsInStateOfFollow(geometry_msgs::Twist& cmd_vel, geometry_msgs::PoseStamped& next_goal, unsigned int& following_wp_num){
     if (! isInitialized()) {
       ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
       return false;
@@ -605,13 +579,18 @@ namespace base_local_planner {
     tf::Stamped<tf::Pose> goal_point;
 
     tf::poseStampedMsgToTF(transformed_plan[following_wp_num], goal_point);
+    
     //we assume the global goal is the last point in the global plan
     double goal_x = goal_point.getOrigin().getX();
     double goal_y = goal_point.getOrigin().getY();
     double yaw = tf::getYaw(goal_point.getRotation());
     double goal_th = yaw;
    
-     
+    next_goal.header.frame_id = global_frame_;
+    next_goal.header.stamp = ros::Time::now();
+    next_goal.pose.position.x = goal_x;
+    next_goal.pose.position.y = goal_y;
+
     // test
     std_msgs::String goal_test_msgs;
     std::stringstream str_goal_test;
@@ -636,11 +615,19 @@ namespace base_local_planner {
     str_num << following_wp_num;
     num.data = str_num.str();
     test_wp_index_.publish(num);
+
+    if(!is_usv_mode_){
+      if(tc_->pointFollow(goal_x, goal_y, goal_th, pos_x, pos_y, pos_th, cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z))
+        ++following_wp_num;
+    }
+    else{
+      if(std::fabs(pos_x - goal_x) <= 0.05 && std::fabs(pos_y - goal_y) <= 0.05){
+        ++following_wp_num;
+      }
+    }
 	
-    if(tc_->pointFollow(goal_x, goal_y, goal_th, pos_x, pos_y, pos_th, cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z))
-      following_wp_num++;
-	
-    if(following_wp_num == transformed_plan.size() - 1){
+    // if(following_wp_num == transformed_plan.size() - 1){
+    if(following_wp_num == transformed_plan.size()){
       reached_goal_ = true; 
       following_wp_num = 1;
     }
