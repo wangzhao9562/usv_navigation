@@ -1,8 +1,9 @@
 usv_navigation
 
-Modified navigation pkg for USVs and under-actuated AUVs based on ros navigation stack
-
-Modified the global base planner interface for advanced A* which considers the orientation limitation of under-actuated mobile robot and this navigation stack is available without kinetic model.
+Navigation pkg for USVs and under-actuated mobile robot in plane based on ros navigation stack  
+1. Modify the global base planner interface for advanced A* which considers the orientation limitation of under-actuated mobile robot and this navigation stack is available without kinetic model.  
+2. In origin navigation stack, the global path planned by global planner is only used as a reference for local planner. However, in this navigation stack, global path should be followed by robot.  
+3. USV will avoid obstacle when followed path is blocked by dynamic or unknown obstacle in environment. After the space is free for USV, a new global path will be planned.
 
 Origin navigation stack: https://github.com/ros-planning/navigation
 
