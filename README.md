@@ -19,14 +19,16 @@ Notice:
 
 Frame of new navigation stack:  
 ![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/Frame_of_navigation_stack.png)  
-
+  
+  
 Inner infrastructure of local planner:  
 ![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/Inner_infrastructure_of_local_planner.png)  
-
-State transform of move_base node
+  
+  
+State transform of move_base node:  
 ![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/State_transform_of_move_base.png)  
 
-Screenshot of simulation 
+Screenshot of simulation:  
 ![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/screenshot_for_nav_pub.png)  
 ![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/screenshot_for_nav_pub_02.png)  
 ![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/screenshot_for_nav_pub_03.png)  
