@@ -17,6 +17,15 @@ Notice:
 1. For using existed simulation tools and third-part libraries, package name is not modifed to satiesfy with the demand of interface(name is still move_base), please don't mix this package with origin navigation stack in one catkin space.
 2. Programe is developed based on origin navigation stack in version of kinetic devel, the recommended system version is ubuntu 16.04LTS.
 
+Frame of new navigation stack:  
+![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/Frame_of_navigation_stack.png)  
+
+Inner infrastructure of local planner:  
+![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/Inner_infrastructure_of_local_planner.png)  
+
+State transform of move_base node
+![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/State_transform_of_move_base.png)  
+
 Screenshot of simulation 
 ![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/screenshot_for_nav_pub.png)  
 ![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/screenshot_for_nav_pub_02.png)  
