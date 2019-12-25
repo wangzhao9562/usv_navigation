@@ -5,10 +5,10 @@ Navigation pkg for USVs and under-actuated mobile robot in plane based on ros na
 2. In origin navigation stack, the global path planned by global planner is only used as a reference for local planner. However, in this navigation stack, global path should be followed by robot.  
 3. USV will avoid obstacle when followed path is blocked by dynamic or unknown obstacle in environment. After the space is free for USV, a new global path will be planned.
 
-#1. Origin Navigation stack  
+## Origin Navigation stack  
 Address: https://github.com/ros-planning/navigation  
 
-#2. Simulation  
+## Simulation  
 sudo apt-get install ros-kinetic-turtlebot*  
 
 git clone https://github.com/wangzhao9562/my_nav_test.git  
@@ -21,11 +21,11 @@ roslaunch my_nav_test view_navigation.launch
 
 ps: catkin spacd name should be replace by your own.  
 
-#3. Notice    
+## Notice    
 1. For using existed simulation tools and third-part libraries, package name is not modifed to satiesfy with the demand of interface(name is still move_base), please don't mix this package with origin navigation stack in one catkin space.
 2. Programe is developed based on origin navigation stack in version of kinetic devel, the recommended system version is ubuntu 16.04LTS. If your ros version is melodic, you should modify the packages relative to turtlebot in launch file, and install turtlebot simulator in responding version.
 
-#4. Frame  
+## Frame  
 Frame of new navigation stack:  
 ![](https://github.com/wangzhao9562/usv_navigation/blob/master/assets/Frame_of_navigation_stack.png)  
   
