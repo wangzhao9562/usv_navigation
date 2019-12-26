@@ -1161,6 +1161,7 @@ namespace base_local_planner{
              goal_y = left_y;
              ++avoid_count_;
              last_choice_ = AvoidOrientation::LEFT;
+			 return true;
            }
            else{
              vx = follow_vel_;
@@ -1245,6 +1246,7 @@ namespace base_local_planner{
              goal_y = right_y;
              ++avoid_count_;
              last_choice_ = AvoidOrientation::RIGHT;
+			 return true;
            }
            else{
              vx = follow_vel_;
@@ -1289,10 +1291,7 @@ namespace base_local_planner{
 	  double distance = hypot(x_i - goal_x, y_i - goal_y);
 	  double mid_th = atan2(goal_y - y_i, goal_x - x_i);
 	  double delc_fin = mid_th - th_i;
-          // double delc_fin = goal_th - th_i;
-          
-          // ROS_INFO("Point Follow");
-	  
+
 	  if(distance <= follow_interrupt_dist_){
 		  vx = 0;
 		  vy = 0;
@@ -1306,8 +1305,6 @@ namespace base_local_planner{
   }
   
   void TrajectoryPlanner::pointFollowLOS(double theta_det, double& vx, double& vy, double& vth){
-	  // ROS_INFO("Point follow LOS");       
-
           theta_det_add_ += theta_det; 
 
           if(fabs(theta_det) >= PI){
@@ -1315,26 +1312,14 @@ namespace base_local_planner{
 			  theta_det -= 2.0 * PI;
 		  else
 			  theta_det += 2.0 * PI;
-	  }
-	  // double R = 2 * theta_det * 180 / PI;
+	      }
 
           double R = kp_ * theta_det + ki_ * theta_det_add_ + kd_ * (theta_det_last_ - theta_det);        
           theta_det_last_ = theta_det;
 
-	  // if(R > 3.2)
-	  //   R = 3.2;
-	  // else if(R < -3.2){
-          //   R = -3.2;
-          //}
-           
-	  // int val = R * 10 + 32;
           if(R != 0){
-	    // double r = 90 / ((val - 32) *PI);
-	    // double radius = r / 1.8;
-	    // vx = max_vel_x_ / 2;
-	    vx = 0.05;
+	        vx = 0.05;
             vy = 0;
-	    // vth = vx / radius;
             vth = R;
           }
           else{
