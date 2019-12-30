@@ -19,5 +19,5 @@ Mavlink messsage:
 1. enum name: ARMS_USV_NAV
    entry: value0 name: ARMS_USV_NAV_MAP_SERVER
 2. message id0 name: MAPINFO
-   field type: "uint8_t[]" name: "occupancy_grid" 
+   field type: "uint8_t[8388608]" name: "occupancy_grid" 1920x1080x4=8294400 
    field type: "uint32_t"  name: "map_info_len" 
