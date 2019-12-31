@@ -17,7 +17,14 @@ Interface in QGC or other control station:
 
 Mavlink messsage:
 1. enum name: ARMS_USV_NAV
-   entry: value0 name: ARMS_USV_NAV_MAP_SERVER
-2. message id0 name: MAPINFO
-   field type: "uint8_t[8388608]" name: "occupancy_grid" 1920x1080x4=8294400 
-   field type: "uint32_t"  name: "map_info_len" 
+   entry: name: ARMS_USV_NAV_MAP_TRANSFER
+2. message id0 name: MAP_INFO
+   field type: "uint16_[2073600]" name: "occupancy_grid" 1920x1080=2073600 
+   field type: "uint32_t" name: "map_width"
+   field type: "uint32_t" name: "map_height"
+   field type: "uint32_t" name: "origin_x"
+   field type: "uint32_t" name: "origin_y"
+   field type: "uint32_t" name: "x_in_last_map"
+   field type: "uint32_t" name: "y_in_last_map"
+
+   field type: "float" name: "resolution"
