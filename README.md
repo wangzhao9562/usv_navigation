@@ -5,6 +5,9 @@ Navigation pkg for USVs and under-actuated mobile robot in plane based on ros na
 2. In origin navigation stack, the global path planned by global planner is only used as a reference for local planner. However, in this navigation stack, global path should be followed by robot.  
 3. USV will avoid obstacle when followed path is blocked by dynamic or unknown obstacle in environment. After the space is free for USV, a new global path will be planned.
 
+## Formal branch  
+Master is test version with developting components, formal branch is the version canbe directly used.  
+
 ## Origin Navigation stack  
 Address: https://github.com/ros-planning/navigation  
 
