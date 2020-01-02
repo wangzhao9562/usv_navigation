@@ -32,6 +32,14 @@ void TCPClient::stopListen(){
     }
 }
 
+void TCPClient::getBuf(buffer_type& buf){
+    {
+        read_lock read_buf(buf_mutex_); // reading buffer
+        buf.clear();
+        buf = tcp_buf_;
+    }
+}
+
 void TCPClient::initialize()
 {
     sock_t_ = new socket_type(tcp_io_);
@@ -57,8 +65,11 @@ void TCPClient::connHandler(const error_code& ec, sock_ptr sock){
         return;
     }
     // read data from port
-    sock->async_read_some(boost::asio::buffer(tcp_buf_), 
+    {
+        write_lock write_buf(buf_mutex_); // writting buffer
+        sock->async_read_some(boost::asio::buffer(tcp_buf_), 
                         boost::bind(&this_type::readHandler, this, boost::asio::placeholders::error));
+    }
 }
 
 void TCPClient::readHandler(const error_code& ec){
