@@ -10,6 +10,7 @@
 **/
 
 #include "map_server/map_loader.h"
+#include "tcp_client.h"
 
 namespace map_server{
     MapLoader::MapLoader(bool save_map, int threshold_occupied = 100, int threshold_free = 0) 
