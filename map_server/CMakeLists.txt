@@ -43,6 +43,7 @@ include_directories(
 add_library(map_server_image_loader src/image_loader.cpp)
 add_dependencies(map_server_image_loader ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(map_server_image_loader
+    ${Boost_LIBRARIES}
     ${BULLET_LIBRARIES}
     ${catkin_LIBRARIES}
     ${SDL_LIBRARY}
