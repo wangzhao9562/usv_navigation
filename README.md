@@ -19,7 +19,7 @@ roslaunch my_nav_test turtlebot_world.launch
 roslaunch my_nav_test amcl_demo_copy.launch  
 roslaunch my_nav_test view_navigation.launch  
 
-ps: name of catkin space should be replace by your own.  
+Warn: Path of catkin space should be replace by your own.  
 
 ## Notice    
 1. For using existed simulation tools and third-part libraries, package name is not modifed to satiesfy with the demand of interface(name is still move_base), please don't mix this package with origin navigation stack in one catkin space.
