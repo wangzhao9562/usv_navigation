@@ -10,13 +10,39 @@
 **/
 
 #include "map_server/map_loader.h"
-#include "tcp_client.h"
 
 namespace map_server{
     MapLoader::MapLoader(bool save_map, int threshold_occupied = 100, int threshold_free = 0) 
-        : map_name_(""), threshold_occupied_(threshold_occupied), threshold_free_(threshold_free)
+        : map_name_(""), threshold_occupied_(threshold_occupied), threshold_free_(threshold_free),
+        tcp_c_(nullptr)
     {
         ros::NodeHandle private_nh("~");    
+        
+        std::string tcp_ip;
+        int tcp_port;
+        int buf_size;
+
+        // Set parameters
+        private_nh.param("tcp_ip", tcp_ip, std::string("127.0.0.1"));
+        private_nh.param("tcp_port", tcp_port, 16384);
+        private_nh.param("buffer_size", buf_size, 2073858);
+
+        // Initialize tcp client
+        try{
+            tcp_c_ = new TCPClient(tcp_ip, tcp_port, static_cast<size_t>buf_size);
+        }
+        catch(std::exception& e){
+            ROS_ERROR("map_server: cannot initialize tcp client!");
+        }
+
+        if(tcp_c_){
+            try{
+                tcp_c_->run();
+            }
+            catch(std::exception& e){
+                ROS_ERROR("map_server: cannot run tcp client!");
+            }
+        }
 
         ROS_INFO("map_server: wait for map");      
 
@@ -24,6 +50,14 @@ namespace map_server{
         map_pub_ = private_nh.advertise<nav_msgs::OccupancyGrid>("map_info", 1, true);
         map_pub_ = private_nh.advertise<std_msgs::String>("map_path", 1, true);
     };
+
+    MapLoader::~MapLoader(){
+        if(tcp_c_){
+            tcp_c_->stopListen();
+            delete tcp_c_;
+        }
+        tcp_c_ = nullptr;
+    }
 
     void MapLoader::mapCallback(const nav_msgs::OccupancyGridConstPtr& map){
         ROS_INFO("map_server: Received a %d X %d map @ %.3f m/pix",
@@ -90,7 +124,16 @@ namespace map_server{
 
     void MapLoader::mapTransform(){
         /* Receive map info from workstation through boost TCP socket */
+        std::vector<u_int8_t> map_info_buf;
+        tcp_c_->getBuf(map_info_buf);
         /* Decode message through mavlink protocol */
+        mavlink_message_t mav_msg;
+        mavlink_status_t mav_status;
+        mavlink_map_info_t mav_map_info_t;
+        for(int ind = 0; ind < map_info_buf.size(); ++ind){
+            u_int8_t mav_c = map_info_buf[ind];
+            if(mavlink_parse_char())
+        }
         /* Transform map info into formation of nav_msgs::OccupancyGrid and publish it on innter topic*/
     };
 }; // end of namespace
