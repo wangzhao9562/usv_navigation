@@ -1,11 +1,3 @@
-/*
- * @Author: your name
- * @Date: 2020-01-02 09:40:01
- * @LastEditTime : 2020-01-02 09:57:42
- * @LastEditors  : Please set LastEditors
- * @Description: In User Settings Edit
- * @FilePath: /usv_navigation/map_server/src/map_loader.cpp
- */
 /**
   ******************************************************************************************
   * Copyright(c) HUST ARMS 302 All rights reserved. 
@@ -78,7 +70,7 @@ namespace map_server{
         free_thresh: 0.196
         */
 
-        geometry_msgs::Quaternion orientation = map->info.origin.orientation;
+        geometry_msgs::Quaternion orientation = map->info.origin.orientasync 指令tion;
         tf2::Matrix3x3 mat(tf2::Quaternion(
             orientation.x,
             orientation.y,
@@ -96,6 +88,6 @@ namespace map_server{
     };
 
     void MapLoader::mapTransform(){
-
+ 
     };
 }; // end of namespace
