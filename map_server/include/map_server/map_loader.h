@@ -20,6 +20,7 @@
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "geometry_msgs/Quaternion.h"
 #include "map_server/ARMsUsvNav/mavlink.h"
+#include "map_server/tcp_client.h"
 
 namespace map_server{
     /**
@@ -39,7 +40,7 @@ namespace map_server{
         /**
          * @brief Deconstructor of MapLoader
          */
-        ~MapLoader(){};
+        ~MapLoader();
 
     private:
         /**
@@ -61,6 +62,8 @@ namespace map_server{
 
         ros::Subscriber map_sub_; // ros subscriber which receive map information from ros topic
         ros::Publisher map_info_pub_; // inner ros publisher  
+
+        TCPClient* tcp_c_;
     };
 } // end of namespace
 
