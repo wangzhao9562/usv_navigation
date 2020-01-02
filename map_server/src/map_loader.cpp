@@ -88,6 +88,8 @@ namespace map_server{
     };
 
     void MapLoader::mapTransform(){
- 
+        /* Receive map info from workstation through boost TCP socket */
+        /* Decode message through mavlink protocol */
+        /* Transform map info into formation of nav_msgs::OccupancyGrid and publish it on innter topic*/
     };
 }; // end of namespace
