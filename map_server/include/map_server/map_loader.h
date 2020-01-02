@@ -13,14 +13,16 @@
 #define MAP_LOADER_H_
 
 #include <cstdio>
+
+#include "map_server/mavlink/v2.0/ARMsUsvNav/mavlink.h"
+#include "map_server/tcp_client.h"
+
 #include "ros/ros.h"
 #include "ros/console.h"
 #include "std_msgs/String.h"
 #include "nav_msgs/GetMap.h"
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "geometry_msgs/Quaternion.h"
-#include "map_server/ARMsUsvNav/mavlink.h"
-#include "map_server/tcp_client.h"
 
 namespace map_server{
     /**
