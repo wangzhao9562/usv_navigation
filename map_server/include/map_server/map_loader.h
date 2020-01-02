@@ -36,8 +36,7 @@ namespace map_server{
          * @param threshold_occupied Threshold value for occupied grid
          * @param threshold_free Threshold value for free grid
          */
-        MapLoader(bool save_map, int threshold_occupied = 100, int threshold_free = 0) 
-        : map_name_(""), threshold_occupied_(threshold_occupied), threshold_free_(threshold_free);
+        MapLoader(bool save_map, int threshold_occupied = 100, int threshold_free = 0);
 
         /**
          * @brief Deconstructor of MapLoader
