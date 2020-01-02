@@ -1,11 +1,3 @@
-/*
- * @Author: your name
- * @Date: 2019-12-30 15:04:07
- * @LastEditTime: 2020-01-02 09:57:52
- * @LastEditors: your name
- * @Description: In User Settings Edit
- * @FilePath: /usv_navigation/map_server/include/map_server/map_loader.h
- */
 /**
   ******************************************************************************************
   * Copyright(c) HUST ARMS 302 All rights reserved. 
