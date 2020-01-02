@@ -66,6 +66,19 @@ public:
      */
     void stopListen();
 
+    /**
+     * @brief Get buffer data
+     * @param buf Outside buffer var to store data
+     * @param buf_len Length of data in buffer
+     */
+    void getBuf(uint8_t buf[], size_t& buf_len);
+
+    /**
+     * @brief Get buffer data
+     * @param buf Outside buffer var in form of vector to store data
+     */
+    void getBuf(buffer_type& buf);
+
 private:
     /**
      * @brief Initialize TCP components, such as sockets
@@ -96,6 +109,7 @@ private:
     endpoint_type tcp_ep_; // tcp socket endpoint
     socket_type *sock_t_;
     boost::shared_mutex listen_mutex_;
+    boost::shared_mutex buf_mutex_;
     bool is_listen_; // is client should keep listen
 };
 
