@@ -58,9 +58,10 @@ namespace map_server{
 
     private:
         std::string map_name_; 
-        int threshold_occupied_; 
+        
+	int threshold_occupied_; 
         int threshold_free_;
-
+	
         ros::Subscriber map_sub_; // ros subscriber which receive map information from ros topic
         ros::Publisher map_info_pub_; // inner ros publisher  
 
