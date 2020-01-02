@@ -127,12 +127,51 @@ namespace map_server{
         std::vector<u_int8_t> map_info_buf;
         tcp_c_->getBuf(map_info_buf);
         /* Decode message through mavlink protocol */
-        mavlink_message_t mav_msg;
-        mavlink_status_t mav_status;
-        mavlink_map_info_t mav_map_info_t;
+        mavlink_message_t mav_msg; // mavlink message
+        mavlink_status_t mav_status; // mavlink status
+        // mavlink_map_info_t mav_map_info;
+
+        std::string map_name; 
+        u_int32_t map_size;
+        std::vector<u_int16_t> map_grid_info;
+        double map_resolution;
+        std::pair<u_int32_t, u_int32_t> map_origin;
+        std::pair<u_int32_t, u_int32_t> map_coord;
+
+        // decode
         for(int ind = 0; ind < map_info_buf.size(); ++ind){
             u_int8_t mav_c = map_info_buf[ind];
-            if(mavlink_parse_char())
+            if(mavlink_parse_char(MAVLINK_COMM_0, mav_c, &mav_msg, &mav_status)){
+                switch(mav_msg.msgid){
+                    case MAP_INFO:
+                    {
+                        // get map name 
+                        u_int8_t* tp_map_name;
+                        mavlink_msg_map_info_get_map_name(&mav_msg, tp_map_name);
+                        map_name = std::string(tp_map_name);
+                        
+                        // get map grid information
+                        u_int_32_t map_width, map_height;
+                        map_width = mavlink_msg_map_info_get_map_width(&mav_msg);
+                        map_height = mavlink_msg_map_info_get_map_height(&mav_msg);
+                        map_size = map_width * map_height;
+                        u_int_16_t tp_map_grid_info[map_size];
+                        mavlink_msg_map_info_get_occupancy_grid(&mav_msg, tp_map_grid_info);
+                        map_grid_info.insert(map_grid_info.end(), tp_map_grid_info, tp_map_grid_info + map_size);
+
+                        // get map resolution
+                        map_resolution = mavlink_msg_map_info_get_resolution(&map_msg);
+
+                        // get map origin point
+                        map_origin.first = mavlink_msg_map_info_get_origin_x(&mav_msg);
+                        map_origin.second = mavlink_msg_map_info_get_origin_y(&mav_msg);
+
+                        // get map coordinate in last map
+                        map_coord.first = mavlink_msg_map_info_get_x_in_last_map(&mav_msg);
+                        map_coord.second = mavlink_msg_map_info_get_y_in_last_map(&mav_msg);
+                    }
+                }
+            }
         }
         /* Transform map info into formation of nav_msgs::OccupancyGrid and publish it on innter topic*/
     };
