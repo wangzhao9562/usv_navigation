@@ -50,7 +50,7 @@ target_link_libraries(map_server_image_loader
     ${SDL_IMAGE_LIBRARIES}
 )
 
-add_executable(map_server src/main.cpp)
+add_executable(map_server src/main.cpp src/map_loader.cpp)
 add_dependencies(map_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(map_server
     map_server_image_loader
