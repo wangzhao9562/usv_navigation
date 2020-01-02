@@ -10,8 +10,8 @@ Address: https://github.com/ros-planning/navigation
 
 ## Simulation  
 sudo apt-get install ros-kinetic-turtlebot*  
-
-git clone -b formal https://github.com/wangzhao9562/my_nav_test.git  
+git clone -b formal https://github.com/wangzhao9562/usv_navigation.git  
+git clone https://github.com/wangzhao9562/my_nav_test.git  
 cd ~/catkin_ws   
 catkin_make  
 source ~/catkin_ws/devel/setup.bash  
