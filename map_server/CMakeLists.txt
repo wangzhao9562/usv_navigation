@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(map_server)
 
+# add_compile_options(-std=c++11)
+
 find_package(catkin REQUIRED
         COMPONENTS
             std_msgs
@@ -50,7 +52,7 @@ target_link_libraries(map_server_image_loader
     ${SDL_IMAGE_LIBRARIES}
 )
 
-add_executable(map_server src/main.cpp src/map_loader.cpp)
+add_executable(map_server src/main.cpp src/map_loader.cpp src/tcp_client.cpp)
 add_dependencies(map_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(map_server
     map_server_image_loader
