@@ -14,8 +14,9 @@
 namespace map_server{
     MapLoader::MapLoader(bool save_map, int threshold_occupied = 100, int threshold_free = 0) 
         : map_name_(""), threshold_occupied_(threshold_occupied), threshold_free_(threshold_free),
-        tcp_c_(nullptr)
+        tcp_c_(NULL)
     {
+	ros::NodeHandle nh;
         ros::NodeHandle private_nh("~");    
         
         std::string tcp_ip;
@@ -29,7 +30,7 @@ namespace map_server{
 
         // Initialize tcp client
         try{
-            tcp_c_ = new TCPClient(tcp_ip, tcp_port, static_cast<size_t>buf_size);
+            tcp_c_ = new TCPClient(tcp_ip, tcp_port, static_cast<size_t>(buf_size));
         }
         catch(std::exception& e){
             ROS_ERROR("map_server: cannot initialize tcp client!");
@@ -47,8 +48,8 @@ namespace map_server{
         ROS_INFO("map_server: wait for map");      
 
         map_sub_ = private_nh.subscribe("map_info", 1, &MapLoader::mapCallback, this);
-        map_pub_ = private_nh.advertise<nav_msgs::OccupancyGrid>("map_info", 1, true);
-        map_pub_ = private_nh.advertise<std_msgs::String>("map_path", 1, true);
+        map_info_pub_ = private_nh.advertise<nav_msgs::OccupancyGrid>("map_info", 1, true);
+        map_path_pub_ = nh.advertise<std_msgs::String>("map_path", 1, true);
 
 	boost::thread map_recv(boost::bind(&MapLoader::mapTransform, this)); // create thread to listen tcp port
     };
@@ -58,7 +59,7 @@ namespace map_server{
             tcp_c_->stopListen();
             delete tcp_c_;
         }
-        tcp_c_ = nullptr;
+        tcp_c_ = NULL;
     }
 
     void MapLoader::mapCallback(const nav_msgs::OccupancyGridConstPtr& map){
@@ -118,7 +119,7 @@ namespace map_server{
         free_thresh: 0.196
         */
 
-        geometry_msgs::Quaternion orientation = map->info.origin.orientasync 指令tion;
+	geometry_msgs::Quaternion orientation = map->info.origin.orientation;
         tf2::Matrix3x3 mat(tf2::Quaternion(
             orientation.x,
             orientation.y,
@@ -138,7 +139,7 @@ namespace map_server{
     void MapLoader::mapTransform(){
 	while(ros::ok()){
 		/* Receive map info from workstation through boost TCP socket */
-		std::vector<u_int8_t> map_info_buf;
+		std::vector<uint8_t> map_info_buf;
 		tcp_c_->getBuf(map_info_buf);
 		/* Decode message through mavlink protocol */
 		mavlink_message_t mav_msg; // mavlink message
@@ -147,33 +148,34 @@ namespace map_server{
 
 		std::string tp_map_name;
 		u_int32_t map_width, map_height;
-		std::vector<u_int16_t> map_grid_info;
+		std::vector<int> map_grid_info;
 		double map_resolution;
-		std::pair<u_int32_t, u_int32_t> map_origin;
-		std::pair<u_int32_t, u_int32_t> map_coord;
+		std::pair<int, int> map_origin;
+		std::pair<int, int> map_coord;
 
 		// decode
 		for(int ind = 0; ind < map_info_buf.size(); ++ind){
 		    u_int8_t mav_c = map_info_buf[ind];
 		    if(mavlink_parse_char(MAVLINK_COMM_0, mav_c, &mav_msg, &mav_status)){
 			switch(mav_msg.msgid){
-			    case MAP_INFO:
+			    case MAVLINK_MSG_ID_MAP_INFO:
 			    {
 				// get map name 
-				u_int8_t* tp_map_name;
-				mavlink_msg_map_info_get_map_name(&mav_msg, tp_map_name);
-				tp_map_name = std::string(tp_map_name);
+				// u_int8_t* tp_map_name_in_char;
+				uint8_t* tp_map_name_in_char;
+				mavlink_msg_map_info_get_map_name(&mav_msg, tp_map_name_in_char);
+				tp_map_name = reinterpret_cast<char*>(const_cast<uint8_t*>(tp_map_name_in_char));
 				
 				// get map grid information
 				map_width = mavlink_msg_map_info_get_map_width(&mav_msg);
 				map_height = mavlink_msg_map_info_get_map_height(&mav_msg);
 				u_int32_t map_size = map_width * map_height;
-				u_int_16_t tp_map_grid_info[map_size];
+				u_int16_t tp_map_grid_info[map_size];
 				mavlink_msg_map_info_get_occupancy_grid(&mav_msg, tp_map_grid_info);
 				map_grid_info.insert(map_grid_info.end(), tp_map_grid_info, tp_map_grid_info + map_size);
 
 				// get map resolution
-				map_resolution = mavlink_msg_map_info_get_resolution(&map_msg);
+				map_resolution = mavlink_msg_map_info_get_resolution(&mav_msg);
 
 				// get map origin point
 				map_origin.first = mavlink_msg_map_info_get_origin_x(&mav_msg);
@@ -190,7 +192,7 @@ namespace map_server{
 		    }
 		}
 		/* Transform map info into formation of nav_msgs::OccupancyGrid and publish it on innter topic*/
-		if(map_name != tp_map_name){
+		if(map_name_ != tp_map_name){
 			map_name_ = tp_map_name;
 
 			nav_msgs::OccupancyGrid map_info_msg;
@@ -204,11 +206,15 @@ namespace map_server{
 			map_info_msg.info.origin.position.y = map_origin.second;
 			map_info_msg.info.origin.orientation.w = 1.0;	
 
-			map_info_msg.data = map_info_buf; // not sure
+			// map_info_msg.data = map_info_buf; // not sure
 
-			map_info_pub_.publish(map_info_buf); // publish
+			for(int ind = 0; ind < map_info_buf.size(); ++ind){
+				map_info_msg.data[ind] = map_info_buf[ind];
+			} // not sure
+
+			map_info_pub_.publish(map_info_msg); // publish
 		}
-		boost::this_thread.sleep(boost::posix_time::second(1));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 	}
     };
 }; // end of namespace

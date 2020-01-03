@@ -36,7 +36,7 @@ namespace map_server{
          * @param threshold_occupied Threshold value for occupied grid
          * @param threshold_free Threshold value for free grid
          */
-        MapLoader(bool save_map, int threshold_occupied = 100, int threshold_free = 0);
+        MapLoader(bool save_map, int threshold_occupied, int threshold_free);
 
         /**
          * @brief Deconstructor of MapLoader
@@ -64,6 +64,8 @@ namespace map_server{
 	
         ros::Subscriber map_sub_; // ros subscriber which receive map information from ros topic
         ros::Publisher map_info_pub_; // inner ros publisher  
+
+	ros::Publisher map_path_pub_; 
 
         TCPClient* tcp_c_;
     };

@@ -12,7 +12,7 @@
 #include "map_server/tcp_client.h"
 
 TCPClient::TCPClient(std::string ip, size_t port, size_t buf_len) : tcp_buf_(buf_len, 0), 
-    tcp_ep_(address_type::from_string(ip), port), sock_t_(nullptr), is_listen_(true)
+    tcp_ep_(address_type::from_string(ip), port), sock_t_(NULL), is_listen_(true)
 {
     // Initialize components
     initialize();
@@ -22,7 +22,7 @@ TCPClient::~TCPClient(){
     if(sock_t_){
         delete sock_t_;
     }
-    sock_t_ = nullptr;
+    sock_t_ = NULL;
 }
 
 void TCPClient::stopListen(){

@@ -33,12 +33,11 @@ typedef boost::unique_lock<boost::shared_mutex> write_lock;
  */
 class TCPClient{
 // Make brief type name
-typedef unsigned int uint8_t;
 typedef TCPClient this_type;
 typedef boost::asio::ip::tcp::endpoint endpoint_type;
 typedef boost::asio::ip::address address_type;
 typedef boost::asio::ip::tcp::socket socket_type;
-typedef std::shared_ptr<socket_type> sock_ptr;
+typedef boost::shared_ptr<socket_type> sock_ptr;
 typedef std::vector<uint8_t> buffer_type;
 
 public:
@@ -71,7 +70,7 @@ public:
      * @param buf Outside buffer var to store data
      * @param buf_len Length of data in buffer
      */
-    void getBuf(uint8_t buf[], size_t& buf_len);
+    void getBuf(uint8_t buf[], size_t& buf_len){};
 
     /**
      * @brief Get buffer data
