@@ -25,8 +25,8 @@ namespace map_server{
 
         // Set parameters
         private_nh.param("tcp_ip", tcp_ip, std::string("127.0.0.1"));
-        private_nh.param("tcp_port", tcp_port, 16384);
-        private_nh.param("buffer_size", buf_size, 2073858);
+        private_nh.param("tcp_port", tcp_port, 6688);
+        private_nh.param("buffer_size", buf_size, 2048);
 
         // Initialize tcp client
         try{
@@ -144,14 +144,13 @@ namespace map_server{
 		/* Decode message through mavlink protocol */
 		mavlink_message_t mav_msg; // mavlink message
 		mavlink_status_t mav_status; // mavlink status
-		// mavlink_map_info_t mav_map_info;
 
 		std::string tp_map_name;
-		u_int32_t map_width, map_height;
-		std::vector<int> map_grid_info;
-		double map_resolution;
-		std::pair<int, int> map_origin;
-		std::pair<int, int> map_coord;
+		uint32_t map_width, map_height;
+		std::vector<uint32_t> map_grid_info;
+		float map_resolution;
+		std::pair<uint32_t, uint32_t> map_origin;
+		std::pair<uint32_t, uint32_t> map_coord;
 
 		// decode
 		for(int ind = 0; ind < map_info_buf.size(); ++ind){
@@ -161,18 +160,20 @@ namespace map_server{
 			    case MAVLINK_MSG_ID_MAP_INFO:
 			    {
 				// get map name 
-				// u_int8_t* tp_map_name_in_char;
 				uint8_t* tp_map_name_in_char;
 				mavlink_msg_map_info_get_map_name(&mav_msg, tp_map_name_in_char);
 				tp_map_name = reinterpret_cast<char*>(const_cast<uint8_t*>(tp_map_name_in_char));
-				
+
 				// get map grid information
 				map_width = mavlink_msg_map_info_get_map_width(&mav_msg);
 				map_height = mavlink_msg_map_info_get_map_height(&mav_msg);
-				u_int32_t map_size = map_width * map_height;
-				u_int16_t tp_map_grid_info[map_size];
+				uint32_t map_size = map_width * map_height;
+				
+				/*
+				uint32_t tp_map_grid_info[map_size];
 				mavlink_msg_map_info_get_occupancy_grid(&mav_msg, tp_map_grid_info);
 				map_grid_info.insert(map_grid_info.end(), tp_map_grid_info, tp_map_grid_info + map_size);
+				*/
 
 				// get map resolution
 				map_resolution = mavlink_msg_map_info_get_resolution(&mav_msg);
@@ -192,6 +193,7 @@ namespace map_server{
 		    }
 		}
 		/* Transform map info into formation of nav_msgs::OccupancyGrid and publish it on innter topic*/
+		/*
 		if(map_name_ != tp_map_name){
 			map_name_ = tp_map_name;
 
@@ -214,6 +216,7 @@ namespace map_server{
 
 			map_info_pub_.publish(map_info_msg); // publish
 		}
+		*/
 		boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 	}
     };
