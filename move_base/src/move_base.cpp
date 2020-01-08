@@ -658,6 +658,8 @@ namespace move_base {
       lock.lock();
 
       //setup sleep interface if needed
+     
+      /* planner_frequency_ is unecessary
       if(planner_frequency_ > 0){
         ros::Duration sleep_time = (start_time + ros::Duration(1.0/planner_frequency_)) - ros::Time::now();
         if (sleep_time > ros::Duration(0.0)){
@@ -665,6 +667,7 @@ namespace move_base {
           timer = n.createTimer(sleep_time, &MoveBase::wakePlanner, this);
         }
       }
+      */ 
     }
   }
 
