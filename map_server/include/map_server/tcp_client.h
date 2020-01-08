@@ -23,6 +23,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/chrono.hpp>
 #include <boost/system/error_code.hpp>
+#include <boost/function.hpp>
 
 // typedef boost::system::error_code error_code;
 // typedef boost::shared_lock<boost::shared_mutex> read_lock;
@@ -44,6 +45,8 @@ typedef boost::asio::ip::tcp::socket socket_type;
 typedef boost::shared_ptr<socket_type> sock_ptr;
 typedef std::vector<uint8_t> buffer_type;
 
+typedef boost::function<void(buffer_type&)> recv_proc_type;
+
 public:
     /**
      * @brief Constructor
@@ -52,6 +55,13 @@ public:
      */
     TCPClient(std::string ip, size_t port, size_t buf_size = 2048);
 
+    /**
+     * @brief Constructor
+     * @param ip TCP ip address
+     * @param port TCP port number
+     */
+    TCPClient(std::string ip, size_t port, buffer_type& buf, size_t buf_size = 2048);
+    
     /**
      * @brief Deconstructor
      */
@@ -63,6 +73,12 @@ public:
     void run(){
         tcp_io_.run();
     }
+
+    /**
+     * @brief Set data receive processor
+     * @param Process functor
+     */
+    void setRecvProcess(recv_proc_type recv_proc);
 
     /**
      * @brief Stop listen to the port and receive data
@@ -89,6 +105,12 @@ private:
     void connect();
     
     /**
+     * @brief Initialize TCP components, such as sockets
+     * @param buf Vector to collect data 
+     */
+    void connect(buffer_type& buf);
+    
+   /**
      * @brief recv fuction : discard
      */
     void recvData(sock_ptr sock);
@@ -99,6 +121,14 @@ private:
     void connHandler(const error_code& ec, sock_ptr sock);
 
     /**
+     * @brief Handler of tcp connection
+     * @param buf Vector to collect data 
+     * @param ec Default error code 
+     * @param sock Socket pointer
+     */
+    void connHandler(buffer_type& buf, const error_code& ec, sock_ptr sock);
+    
+    /**
      * @brief Handler to read data in buffer
      * @param ec Error code of TCP socket
      */
@@ -107,12 +137,12 @@ private:
     /**
      * @brief Invoked to print data in buffer
      */
-    void testPrint();
+    void testPrint(buffer_type& buf);
 
     /**
      * @brief Mavlink message unpacking
      */
-    void mavUnpack();
+    void testMavUnpack(buffer_type& buf);
 
 private:
     boost::asio::io_service tcp_io_;
@@ -122,6 +152,8 @@ private:
     boost::shared_mutex listen_mutex_;
     boost::shared_mutex buf_mutex_;
     bool is_listen_; // is client should keep listen
+
+    recv_proc_type recv_proc_; // data processor
 };
 
 #endif
