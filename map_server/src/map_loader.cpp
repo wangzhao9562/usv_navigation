@@ -21,16 +21,14 @@ namespace map_server{
         
         std::string tcp_ip;
         int tcp_port;
-        int buf_size;
 
         // Set parameters
         private_nh.param("tcp_ip", tcp_ip, std::string("127.0.0.1"));
         private_nh.param("tcp_port", tcp_port, 6688);
-        private_nh.param("buffer_size", buf_size, 2048);
 
         // Initialize tcp client
         try{
-            tcp_c_ = new TCPClient(tcp_ip, tcp_port, static_cast<size_t>(buf_size));
+            tcp_c_ = new TCPClient(tcp_ip, tcp_port);
         }
         catch(std::exception& e){
             ROS_ERROR("map_server: cannot initialize tcp client!");

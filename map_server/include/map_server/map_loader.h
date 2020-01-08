@@ -14,7 +14,7 @@
 
 #include <cstdio>
 
-#include "map_server/mavlink/v2.0/ARMsUsvNav/mavlink.h"
+#include "map_server/mavlink/v2.0/arms_usv_nav/mavlink.h"
 #include "map_server/tcp_client.h"
 
 #include "ros/ros.h"

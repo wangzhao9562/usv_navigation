@@ -24,14 +24,18 @@
 #include <boost/chrono.hpp>
 #include <boost/system/error_code.hpp>
 
-typedef boost::system::error_code error_code;
-typedef boost::shared_lock<boost::shared_mutex> read_lock;
-typedef boost::unique_lock<boost::shared_mutex> write_lock;
+// typedef boost::system::error_code error_code;
+// typedef boost::shared_lock<boost::shared_mutex> read_lock;
+// typedef boost::unique_lock<boost::shared_mutex> write_lock;
 
 /**
  * @brief TCP client used to receive data stream from TCP server
  */
 class TCPClient{
+typedef boost::system::error_code error_code;
+typedef boost::shared_lock<boost::shared_mutex> read_lock;
+typedef boost::unique_lock<boost::shared_mutex> write_lock;
+
 // Make brief type name
 typedef TCPClient this_type;
 typedef boost::asio::ip::tcp::endpoint endpoint_type;
@@ -82,8 +86,11 @@ private:
     /**
      * @brief Initialize TCP components, such as sockets
      */
-    void initialize();
-
+    void connect();
+    
+    /**
+     * @brief recv fuction : discard
+     */
     void recvData(sock_ptr sock);
 
     /**
@@ -101,6 +108,11 @@ private:
      * @brief Invoked to print data in buffer
      */
     void testPrint();
+
+    /**
+     * @brief Mavlink message unpacking
+     */
+    void mavUnpack();
 
 private:
     boost::asio::io_service tcp_io_;

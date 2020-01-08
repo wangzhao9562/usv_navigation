@@ -9,20 +9,22 @@
 ********************************************************************************************
 **/
 #include <iostream>
+#include <string>
 #include "map_server/tcp_client.h"
+#include "map_server/mavlink/v2.0/arms_usv_nav/mavlink.h"
+#include "ros/ros.h"
 
-TCPClient::TCPClient(std::string ip, size_t port, size_t buf_len) : tcp_buf_(buf_len, 0), 
-    tcp_ep_(address_type::from_string(ip), port), sock_t_(NULL), is_listen_(true)
+TCPClient::TCPClient(std::string ip, size_t port, size_t buf_size) : tcp_buf_(buf_size, 0), tcp_ep_(address_type::from_string(ip), port), sock_t_(nullptr), is_listen_(true)
 {
     // Initialize components
-    initialize();
+    connect();
 }
 
 TCPClient::~TCPClient(){
-    if(sock_t_){
-        delete sock_t_;
-    }
-    sock_t_ = NULL;
+    // if(sock_t_ != nullptr){
+    //     delete sock_t_;
+    // sock_t_ = nullptr;
+    // }
 }
 
 void TCPClient::stopListen(){
@@ -40,28 +42,27 @@ void TCPClient::getBuf(buffer_type& buf){
     }
 }
 
-void TCPClient::initialize()
+void TCPClient::connect()
 {
-    sock_t_ = new socket_type(tcp_io_);
-    sock_ptr sock(sock_t_); // create socket pointer
-
-    boost::thread read_thread(boost::bind(&this_type::recvData, this, sock)); // start read thread   
+    // sock_t_ = new socket_type(tcp_io_);
+    // sock_ptr sock(sock_t_); // create socket pointer
+    sock_ptr sock(new socket_type(tcp_io_));
+    // boost::thread read_thread(boost::bind(&this_type::recvData, this, sock)); // start read thread   
+    sock->async_connect(tcp_ep_, boost::bind(&this_type::connHandler, this, boost::asio::placeholders::error, sock));
 }
 
 
 void TCPClient::recvData(sock_ptr sock){
-    {
-        read_lock listen(listen_mutex_); // reading lock
-        while(is_listen_){
-            sock->async_connect(tcp_ep_, boost::bind(&this_type::connHandler, 
+    while(is_listen_){
+      sock->async_connect(tcp_ep_, boost::bind(&this_type::connHandler, 
                                                         this, boost::asio::placeholders::error, sock));
-            boost::this_thread::sleep(boost::posix_time::millisec(200)); // thread sleep
-        }
+      boost::this_thread::sleep(boost::posix_time::millisec(200)); // thread sleep
     }
 }
 
 void TCPClient::connHandler(const error_code& ec, sock_ptr sock){
     if(ec){
+	ROS_WARN("tcp_client: error in connect");
         return;
     }
     // read data from port
@@ -70,17 +71,101 @@ void TCPClient::connHandler(const error_code& ec, sock_ptr sock){
         sock->async_read_some(boost::asio::buffer(tcp_buf_), 
                         boost::bind(&this_type::readHandler, this, boost::asio::placeholders::error));
     }
+    if(ros::ok()){
+	connect();
+    }
+    else{
+        return;
+    }	
 }
 
 void TCPClient::readHandler(const error_code& ec){
     if(ec){
         return;
     }
-    // do nothing
-    // testPrint();
+    // testPrint(); 
+    mavUnpack();
 }
 
 void TCPClient::testPrint(){
     // print data
-    std::cout << &tcp_buf_[0] << std::endl;
+    for(auto x : tcp_buf_){
+      std::cout << unsigned(x) << " ";
+    }
+    std::cout << std::endl;
+}
+
+void TCPClient::mavUnpack(){
+    if(tcp_buf_.size()){
+      for(int ind = 0; ind < tcp_buf_.size(); ++ind){
+	mavlink_message_t mav_msg;
+	mavlink_status_t status;
+
+	uint8_t c = tcp_buf_[ind];
+	/*try{
+		c = tcp_buf_[ind];
+	}
+	catch(std::exception& e){
+		ROS_ERROR_STREAM("tcp_client: error in buffer" << unsigned(c));
+	}*/
+
+	// ROS_INFO_STREAM("mav_link: parse char: " << unsigned(c));
+        if(mavlink_parse_char(MAVLINK_COMM_0, c, &mav_msg, &status)){
+		ROS_INFO("mav_link: check message id");
+		switch(mav_msg.msgid){
+			case MAVLINK_MSG_ID_MAP_INFO:
+			{
+				// get map name
+				uint8_t map_name[20];
+				ROS_INFO("mav_link: start unpack");
+				mavlink_msg_map_info_get_map_name(&mav_msg, map_name);
+				ROS_INFO("mav_link: get map name");
+				const char* map_name_c = reinterpret_cast<char*>(map_name);
+				std::string map_name_str = map_name_c;
+				std::cout << "map_name: " << map_name_str << std::endl;
+				// get map width 
+				uint32_t map_width;
+				map_width = mavlink_msg_map_info_get_map_width(&mav_msg);
+				ROS_INFO("mav_link: get map width");
+				std::cout << "map_width: " << map_width << std::endl;
+				// get map height
+				uint32_t map_height;
+				map_height = mavlink_msg_map_info_get_map_height(&mav_msg);
+				ROS_INFO("mav_link: get map height");
+				std::cout << "map_height: " << map_height << std::endl;
+				// get origin x
+				uint32_t origin_x;
+				origin_x = mavlink_msg_map_info_get_origin_x(&mav_msg);
+				ROS_INFO("mav_link: get origin x");
+				std::cout << "origin_x: " << origin_x << std::endl;
+				// get origin y
+				uint32_t origin_y;
+				origin_y = mavlink_msg_map_info_get_origin_y(&mav_msg);
+				
+				ROS_INFO("mav_link: get origin y");
+				std::cout << "origin_y: " << origin_y << std::endl;
+				// get map x drift
+				uint32_t drift_x;
+				drift_x = mavlink_msg_map_info_get_x_in_last_map(&mav_msg);
+				ROS_INFO("mav_link: get drift x");
+				std::cout << "drift_x: " << drift_x << std::endl;
+				// get map y drift
+				uint32_t drift_y;
+				drift_y = mavlink_msg_map_info_get_y_in_last_map(&mav_msg);
+				ROS_INFO("mav_link: get drift y");
+				std::cout << "drift_y: " << drift_y << std::endl;
+				// get resolution
+				float resolution;
+				resolution = mavlink_msg_map_info_get_resolution(&mav_msg);
+				ROS_INFO("mav_link: get resolution");
+				std::cout << "resolution: " << resolution << std::endl;
+				ROS_INFO("tcp_client: unpacking finish");
+			}
+				break;
+			default:
+				break;
+		}
+	}
+      }
+    }
 }
