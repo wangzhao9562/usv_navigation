@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(map_server)
 
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED
         COMPONENTS
@@ -26,6 +26,7 @@ catkin_package(
         include
     LIBRARIES
         map_server_image_loader
+        tcp_dependencies
     CATKIN_DEPENDS
         std_msgs
         roscpp
@@ -52,7 +53,27 @@ target_link_libraries(map_server_image_loader
     ${SDL_IMAGE_LIBRARIES}
 )
 
-add_executable(map_server src/main.cpp src/map_loader.cpp src/tcp_client.cpp)
+add_library(tcp_dependencies src/tcp_client.cpp src/tcp_server.cpp)
+add_dependencies(tcp_dependencies ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(tcp_dependencies
+	${catkin_LIBRARIES}
+)
+
+add_executable(tcp_client_test test/tcp_client_test.cpp)
+add_dependencies(tcp_client_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(tcp_client_test
+	tcp_dependencies
+	${catkin_LIBRARIES}
+)
+
+add_executable(tcp_server_test test/tcp_server_test.cpp)
+add_dependencies(tcp_server_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(tcp_server_test
+	tcp_dependencies
+	${catkin_LIBRARIES}
+)
+
+add_executable(map_server src/main.cpp src/map_loader.cpp src/tcp_client.cpp src/tcp_server.cpp)
 add_dependencies(map_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(map_server
     map_server_image_loader
@@ -66,6 +87,12 @@ set_target_properties(map_server-map_saver PROPERTIES OUTPUT_NAME map_saver)
 target_link_libraries(map_server-map_saver
     ${catkin_LIBRARIES}
 )
+
+# add_executable(map_server_test src/main.cpp src/map_loader.cpp src/tcp_client.cpp src/tcp_server.cpp test/map_server_test.cpp)
+# add_dependencies(map_server_test ${${PROJECT_NAME}_EXPORTED_TARGTES} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(map_server_test
+# 	${catkin_LIBRARIES}
+# )
 
 # copy test data to same place as tests are run
 function(copy_test_data)
