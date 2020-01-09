@@ -67,7 +67,8 @@ namespace move_base {
     std::string global_planner, local_planner;
     // private_nh.param("base_global_planner", global_planner, std::string("navfn/NavfnROS"));
 	private_nh.param("base_global_planner", global_planner, std::string("static_planner/StaticPlanner"));
-    private_nh.param("base_local_planner", local_planner, std::string("base_local_planner/TrajectoryPlannerROS"));
+    // private_nh.param("base_local_planner", local_planner, std::string("base_local_planner/TrajectoryPlannerROS"));
+    private_nh.param("base_local_planner", local_planner, std::string("base_local_planner/DynamicPlannerROS"));
     private_nh.param("global_costmap/robot_base_frame", robot_base_frame_, std::string("base_link"));
     private_nh.param("global_costmap/global_frame", global_frame_, std::string("/map"));
     private_nh.param("planner_frequency", planner_frequency_, 0.0);
