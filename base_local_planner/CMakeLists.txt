@@ -63,7 +63,7 @@ catkin_package(
     INCLUDE_DIRS include
     LIBRARIES
         base_local_planner
-        trajectory_planner_ros
+	dynamic_planner_ros
     CATKIN_DEPENDS
         angles
         costmap_2d
@@ -114,12 +114,20 @@ target_link_libraries(base_local_planner
     ${Eigen_LIBRARIES}
     )
 
-add_library(trajectory_planner_ros
-	src/trajectory_planner.cpp
-	src/trajectory_planner_ros.cpp)
-add_dependencies(trajectory_planner_ros ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(trajectory_planner_ros
-     base_local_planner)
+# add_library(trajectory_planner_ros
+# 	src/trajectory_planner.cpp
+# 	src/trajectory_planner_ros.cpp)
+# add_dependencies(trajectory_planner_ros ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(trajectory_planner_ros
+#      base_local_planner)
+
+# add dynamic planner dependencies
+add_library(dynamic_planner_ros
+        src/dynamic_planner.cpp
+	src/dynamic_planner_ros.cpp)
+add_dependencies(dynamic_planner_ros ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(dynamic_planner_ros
+    base_local_planner)
 
 add_executable(point_grid src/point_grid.cpp)
 add_dependencies(point_grid ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
@@ -127,7 +135,7 @@ target_link_libraries(point_grid ${catkin_LIBRARIES})
 
 install(TARGETS
             base_local_planner
-            trajectory_planner_ros
+	    dynamic_planner_ros
        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
        )
@@ -141,19 +149,3 @@ install(DIRECTORY include/${PROJECT_NAME}/
   PATTERN ".svn" EXCLUDE
 )
 
-if(CATKIN_ENABLE_TESTING)
-  find_package(rostest)
-  catkin_add_gtest(base_local_planner_utest
-    test/gtest_main.cpp
-    test/utest.cpp
-    test/velocity_iterator_test.cpp
-    test/footprint_helper_test.cpp
-    test/trajectory_generator_test.cpp
-    test/map_grid_test.cpp)
-  target_link_libraries(base_local_planner_utest
-      base_local_planner trajectory_planner_ros
-      )
-
-  catkin_add_gtest(line_iterator
-      test/line_iterator_test.cpp)
-endif()
