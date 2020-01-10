@@ -131,7 +131,7 @@ namespace base_local_planner{
 
 		}
 		else{
-			ROS_WARN("This planner has already been initialized, doing nothing");
+			ROS_WARN("base_local_planner", "This planner has already been initialized, doing nothing");
 		}
 	}
 
@@ -148,7 +148,7 @@ namespace base_local_planner{
 
 	bool DynamicPlannerROS::setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan){
 		if (! isInitialized()) {
-			ROS_ERROR("local_planner: This planner has not been initialized");
+			ROS_ERROR("base_local_planner", "This planner has not been initialized");
 			return false;
 		}
 
@@ -163,7 +163,7 @@ namespace base_local_planner{
 
 	bool DynamicPlannerROS::isFollowBlocked(unsigned int following_wp_num){
 		if (! isInitialized()){
-			ROS_ERROR("local_planner: This planner has not been initialized");
+			ROS_ERROR("base_local_planner", "This planner has not been initialized");
 			return false;
 		}
 
@@ -176,7 +176,7 @@ namespace base_local_planner{
 		// get global plan in global frame
 		std::vector<geometry_msgs::PoseStamped> transformed_plan;
 		if(!transformGlobalPlan(*tf_, global_plan_, global_pose, *costmap_, global_frame_, transformed_plan)){
-			ROS_WARN("Could not transform the global plan to the frame of the controller");
+			ROS_WARN("base_local_planner", "Could not transform the global plan to the frame of the controller");
 			return false;
 		}
 		
@@ -185,65 +185,68 @@ namespace base_local_planner{
 			return false;
 		}
 
-		tf::Stamped<tf::Pose> goal_point;
+		if(following_wp_num < transformed_plan.size()){
+			tf::Stamped<tf::Pose> goal_point;
 
-		try{
-			tf::poseStampedMsgToTF(transformed_plan[following_wp_num], goal_point);
+			try{
+				tf::poseStampedMsgToTF(transformed_plan[following_wp_num], goal_point);
+			}
+			catch(std::exception& e){
+				ROS_ERROR("base_local_planner", "transfer pose to tf msg from pose msg failed");
+			}
+			//we assume the global goal is the last point in the global plan
+			double goal_x = goal_point.getOrigin().getX();
+			double goal_y = goal_point.getOrigin().getY();
+
+			// get current position of robot
+			double pos_x = global_pose.getOrigin().getX();
+			double pos_y = global_pose.getOrigin().getY();
+			double pos_th = tf::getYaw(global_pose.getRotation());
+
+			// rviz interface
+			geometry_msgs::PoseStamped mid, vis_left, vis_right;
+			std::vector<geometry_msgs::PoseStamped> vis_vec = tc_->getVisualArea(pos_x, pos_y, pos_th);
+			vis_vec[0].header.frame_id = global_frame_;
+			vis_vec[1].header.frame_id = global_frame_;
+			vis_vec[2].header.frame_id = global_frame_;
+			tf_->transformPose("odom", vis_vec[0], mid); // world frame to base of robot
+			tf_->transformPose("odom", vis_vec[1], vis_left);
+			tf_->transformPose("odom", vis_vec[2], vis_right);
+			visualization_msgs::Marker mid_line, vis_left_line, vis_right_line;
+			getLineVisMsgs(pos_x, pos_y, mid, mid_line, VisAreaType::VISUALAREA);
+			getLineVisMsgs(pos_x, pos_y, vis_left, vis_left_line, VisAreaType::VISUALAREA);
+			getLineVisMsgs(pos_x, pos_y, vis_right, vis_right_line, VisAreaType::VISUALAREA);
+			
+			test_mid_pub_.publish(mid_line);
+			test_vis_left_pub_.publish(vis_left_line);
+			test_vis_right_pub_.publish(vis_right_line);
+
+			// rviz interface
+			geometry_msgs::PoseStamped obs_left, obs_right;
+			std::vector<geometry_msgs::PoseStamped> obs_vec = tc_->getObsDetectionArea(pos_x, pos_y, pos_th);
+			obs_vec[0].header.frame_id = global_frame_;
+			obs_vec[1].header.frame_id = global_frame_;
+			obs_vec[2].header.frame_id = global_frame_;
+			tf_->transformPose("odom", obs_vec[1], obs_left);
+			tf_->transformPose("odom", obs_vec[2], obs_right);
+			visualization_msgs::Marker obs_left_line, obs_right_line;
+			getLineVisMsgs(pos_x, pos_y, obs_left, obs_left_line, VisAreaType::OBSDETECTAREA);
+			getLineVisMsgs(pos_x, pos_y, obs_right, obs_right_line, VisAreaType::OBSDETECTAREA);
+			
+			test_obs_detect_left_pub_.publish(obs_left_line);
+			test_obs_detect_right_pub_.publish(obs_right_line);
+			
+			if(!tc_->isFollowBlocked(goal_x, goal_y, pos_x, pos_y, pos_th)){
+				return false;
+			}
+			return true;
 		}
-		catch(std::exception& e){
-			ROS_ERROR("local_planner: transfer pose to tf msg from pose msg failed");
-		}
-		//we assume the global goal is the last point in the global plan
-		double goal_x = goal_point.getOrigin().getX();
-		double goal_y = goal_point.getOrigin().getY();
-
-		// get current position of robot
-		double pos_x = global_pose.getOrigin().getX();
-		double pos_y = global_pose.getOrigin().getY();
-		double pos_th = tf::getYaw(global_pose.getRotation());
-
-		// rviz interface
-		geometry_msgs::PoseStamped mid, vis_left, vis_right;
-		std::vector<geometry_msgs::PoseStamped> vis_vec = tc_->getVisualArea(pos_x, pos_y, pos_th);
-		vis_vec[0].header.frame_id = global_frame_;
-		vis_vec[1].header.frame_id = global_frame_;
-		vis_vec[2].header.frame_id = global_frame_;
-		tf_->transformPose("odom", vis_vec[0], mid); // world frame to base of robot
-		tf_->transformPose("odom", vis_vec[1], vis_left);
-		tf_->transformPose("odom", vis_vec[2], vis_right);
-		visualization_msgs::Marker mid_line, vis_left_line, vis_right_line;
-		getLineVisMsgs(pos_x, pos_y, mid, mid_line, VisAreaType::VISUALAREA);
-		getLineVisMsgs(pos_x, pos_y, vis_left, vis_left_line, VisAreaType::VISUALAREA);
-		getLineVisMsgs(pos_x, pos_y, vis_right, vis_right_line, VisAreaType::VISUALAREA);
-		
-		test_mid_pub_.publish(mid_line);
-		test_vis_left_pub_.publish(vis_left_line);
-		test_vis_right_pub_.publish(vis_right_line);
-
-		// rviz interface
-		geometry_msgs::PoseStamped obs_left, obs_right;
-		std::vector<geometry_msgs::PoseStamped> obs_vec = tc_->getObsDetectionArea(pos_x, pos_y, pos_th);
-		obs_vec[0].header.frame_id = global_frame_;
-		obs_vec[1].header.frame_id = global_frame_;
-		obs_vec[2].header.frame_id = global_frame_;
-		tf_->transformPose("odom", obs_vec[1], obs_left);
-		tf_->transformPose("odom", obs_vec[2], obs_right);
-		visualization_msgs::Marker obs_left_line, obs_right_line;
-		getLineVisMsgs(pos_x, pos_y, obs_left, obs_left_line, VisAreaType::OBSDETECTAREA);
-		getLineVisMsgs(pos_x, pos_y, obs_right, obs_right_line, VisAreaType::OBSDETECTAREA);
-		
-		test_obs_detect_left_pub_.publish(obs_left_line);
-		test_obs_detect_right_pub_.publish(obs_right_line);
-		
-		if(!tc_->isFollowBlocked(goal_x, goal_y, pos_x, pos_y, pos_th)){
-			return false;
-		}
-		return true;
+		return false;
 	}
 
 	bool DynamicPlannerROS::isStopAvoidance(){
 		if (! isInitialized()){
-			ROS_ERROR("local_planner: This planner has not been initialized");
+			ROS_ERROR("base_local_planner", "This planner has not been initialized");
 			return false;
 		}
 		tf::Stamped<tf::Pose> global_pose;
@@ -264,7 +267,7 @@ namespace base_local_planner{
 
 	bool DynamicPlannerROS::computeVelCommandsInStateOfAvoid(geometry_msgs::Twist& cmd_vel, geometry_msgs::PoseStamped& next_goal, unsigned int& following_wp_num){
 		if (! isInitialized()) {
-			ROS_ERROR("local_planner: This planner has not been initialized");
+			ROS_ERROR("base_local_planner", "This planner has not been initialized");
 			return false;
 		}
 		tf::Stamped<tf::Pose> global_pose;
@@ -292,7 +295,7 @@ namespace base_local_planner{
 
 	bool DynamicPlannerROS::computeVelCommandsInStateOfFollow(geometry_msgs::Twist& cmd_vel, geometry_msgs::PoseStamped& next_goal, unsigned int& following_wp_num){
 		if (! isInitialized()) {
-			ROS_ERROR("local_planner: This planner has not been initialized");
+			ROS_ERROR("base_local_planner", "This planner has not been initialized");
 			return false;
 		}
 		tf::Stamped<tf::Pose> global_pose;
@@ -302,7 +305,7 @@ namespace base_local_planner{
 
 		std::vector<geometry_msgs::PoseStamped> transformed_plan;
 		if(!transformGlobalPlan(*tf_, global_plan_, global_pose, *costmap_, global_frame_, transformed_plan)){
-			ROS_WARN("local_planner: Could not transform the global plan to the frame of the controller");
+			ROS_WARN("base_local_planner", "Could not transform the global plan to the frame of the controller");
 			return false;
 		}
 
@@ -310,71 +313,74 @@ namespace base_local_planner{
 		if(transformed_plan.empty())
 			return false;
 		tf::Stamped<tf::Pose> goal_point;
+	
+		if(following_wp_num < transformed_plan.size()){
+			tf::poseStampedMsgToTF(transformed_plan[following_wp_num], goal_point);
 
-		tf::poseStampedMsgToTF(transformed_plan[following_wp_num], goal_point);
+			//we assume the global goal is the last point in the global plan
+			double goal_x = goal_point.getOrigin().getX();
+			double goal_y = goal_point.getOrigin().getY();
+			double yaw = tf::getYaw(goal_point.getRotation());
+			double goal_th = yaw;
 
-		//we assume the global goal is the last point in the global plan
-		double goal_x = goal_point.getOrigin().getX();
-		double goal_y = goal_point.getOrigin().getY();
-		double yaw = tf::getYaw(goal_point.getRotation());
-		double goal_th = yaw;
+			ROS_INFO_STREAM("base_local_planner: follow point (" << goal_x << "," << goal_y << ")");
+	
+			next_goal.header.frame_id = global_frame_;
+			next_goal.header.stamp = ros::Time::now();
+			next_goal.pose.position.x = goal_x;
+			next_goal.pose.position.y = goal_y;
 
-		ROS_INFO_STREAM("base_local_planner: follow point (" << goal_x << "," << goal_y << ")");
+			// test
+			std_msgs::String goal_test_msgs;
+			std::stringstream str_goal_test;
+			str_goal_test << goal_x << "," << goal_y << "," << goal_th;
+			goal_test_msgs.data = str_goal_test.str();
+			// test_goal_.publish(goal_test_msgs);
 
-		next_goal.header.frame_id = global_frame_;
-		next_goal.header.stamp = ros::Time::now();
-		next_goal.pose.position.x = goal_x;
-		next_goal.pose.position.y = goal_y;
+			double pos_x = global_pose.getOrigin().getX();
+			double pos_y = global_pose.getOrigin().getY();
+			double pos_th = tf::getYaw(global_pose.getRotation());
 
-		// test
-		std_msgs::String goal_test_msgs;
-		std::stringstream str_goal_test;
-		str_goal_test << goal_x << "," << goal_y << "," << goal_th;
-		goal_test_msgs.data = str_goal_test.str();
-		// test_goal_.publish(goal_test_msgs);
+			// test
+			std_msgs::String pose_test_msgs;
+			std::stringstream str_pose_test;
+			str_pose_test << pos_x << "," << pos_y << "," << pos_th;
+			pose_test_msgs.data = str_pose_test.str();
+			// test_robot_pos_.publish(pose_test_msgs);
 
-		double pos_x = global_pose.getOrigin().getX();
-		double pos_y = global_pose.getOrigin().getY();
-		double pos_th = tf::getYaw(global_pose.getRotation());
+			// test
+			std_msgs::String num;
+			std::stringstream str_num;
+			str_num << following_wp_num;
+			num.data = str_num.str();
+			// test_wp_index_.publish(num);
 
-		// test
-		std_msgs::String pose_test_msgs;
-		std::stringstream str_pose_test;
-		str_pose_test << pos_x << "," << pos_y << "," << pos_th;
-		pose_test_msgs.data = str_pose_test.str();
-		// test_robot_pos_.publish(pose_test_msgs);
+			if(!is_usv_mode_){
+				if(tc_->pointFollow(goal_x, goal_y, goal_th, pos_x, pos_y, pos_th, cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z))
+					++following_wp_num;
 
-		// test
-		std_msgs::String num;
-		std::stringstream str_num;
-		str_num << following_wp_num;
-		num.data = str_num.str();
-		// test_wp_index_.publish(num);
-
-		if(!is_usv_mode_){
-			if(tc_->pointFollow(goal_x, goal_y, goal_th, pos_x, pos_y, pos_th, cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z))
-				++following_wp_num;
-
-			ROS_INFO_STREAM("base_local_planner: pos (" << pos_x << "," << pos_y << ") " << "follow [" << cmd_vel.linear.x << "," << cmd_vel.linear.y << "," << cmd_vel.angular.z << "]");
-		}
-		else{
-			if(std::fabs(pos_x - goal_x) <= 0.05 && std::fabs(pos_y - goal_y) <= 0.05){
-				++following_wp_num;
+				ROS_INFO_STREAM("base_local_planner: pos (" << pos_x << "," << pos_y << ") " << "follow [" << cmd_vel.linear.x << "," << cmd_vel.linear.y << "," << cmd_vel.angular.z << "]");
 			}
-		}
+			else{
+				if(std::fabs(pos_x - goal_x) <= 0.05 && std::fabs(pos_y - goal_y) <= 0.05){
+					++following_wp_num;
+				}
+			}
 
-		// if(following_wp_num == transformed_plan.size() - 1){
-		if(following_wp_num == transformed_plan.size()){
-			reached_goal_ = true;
-			following_wp_num = 1;
-		}
+			// if(following_wp_num == transformed_plan.size() - 1){
+			if(following_wp_num == transformed_plan.size()){
+				reached_goal_ = true;
+				following_wp_num = 1;
+			}
 
-		return true;
+			return true;
+			}
+		return false;
 	}
 
 	bool DynamicPlannerROS::isGoalReached() {
 		if (! isInitialized()) {
-			ROS_ERROR("local_planner: This planner has not been initialized");
+			ROS_ERROR("base_local_planner", "This planner has not been initialized");
 			return false;
 		}
 		//return flag set in controller
