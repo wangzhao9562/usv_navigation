@@ -135,7 +135,6 @@ class StaticPlanner : public nav_core::BaseGlobalPlanner {
 	
         bool use_bspline_filter_; 
 
-        int scalling_factor_;      
         double interpolation_interval_;
  	
         float convert_offset_;
