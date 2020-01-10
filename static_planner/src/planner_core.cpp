@@ -12,9 +12,9 @@ PLUGINLIB_EXPORT_CLASS(static_planner::StaticPlanner, nav_core::BaseGlobalPlanne
 
 namespace static_planner{
 
-StaticPlanner::StaticPlanner() : costmap_(NULL), initialized_(false), allow_unknown_(true){}
+StaticPlanner::StaticPlanner() : costmap_(NULL), initialized_(false), allow_unknown_(false){}
 
-StaticPlanner::StaticPlanner(std::string name, costmap_2d::Costmap2D* costmap, std::string frame_id) : costmap_(NULL), initialized_(false), allow_unknown_(true)
+StaticPlanner::StaticPlanner(std::string name, costmap_2d::Costmap2D* costmap, std::string frame_id) : costmap_(NULL), initialized_(false), allow_unknown_(false)
 {
   initialize(name, costmap, frame_id);
 }
@@ -51,15 +51,14 @@ void StaticPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
     costmap_ = costmap;
     frame_id_ = frame_id;
 	
-    double robot_radius;
+    double wrapper_resolution;
 	
     unsigned int cx = costmap->getSizeInCellsX(), cy = costmap->getSizeInCellsY();
-    private_nh.param("scalling_factor", scalling_factor_, 2);
     private_nh.param("old_navfn_behavior", old_navfn_behavior_, false);
     private_nh.param("use_orientation_filter", use_orientation_filter_, true);
     private_nh.param("usv_bspline_filter", use_bspline_filter_, true);
     private_nh.param("interpolation_interval", interpolation_interval_, 0.15);	 
-    private_nh.param("robot_radius", robot_radius, 2 * costmap->getResolution());
+    private_nh.param("wrapper_resolution", wrapper_resolution, 2 * costmap->getResolution());
 
     if(!old_navfn_behavior_)
       convert_offset_ = 0.5;
@@ -67,7 +66,7 @@ void StaticPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
       convert_offset_ = 0.0;
 		
     planner_ = new AdAStarPlanner(cx, cy, costmap->getResolution());
-    planner_->setRoughLength(scalling_factor_ * robot_radius);
+    planner_->setRoughLength(wrapper_resolution);
 		
     if(use_orientation_filter_ && use_bspline_filter_){
       orientation_filter_ = new BsplineFilter(interpolation_interval_);
@@ -79,13 +78,14 @@ void StaticPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
     plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
     filtered_plan_pub_ = private_nh.advertise<nav_msgs::Path>("filtered_path", 1);	
 	
-    private_nh.param("allow_unknown", allow_unknown_, true);
-    planner_->setHasUnknown(allow_unknown_);
+    private_nh.param("allow_unknown", allow_unknown_, false);
     private_nh.param("planner_window_x", planner_window_x_, 0.0);
     private_nh.param("planner_window_y", planner_window_y_, 0.0);
     private_nh.param("default_tolerance", default_tolerance_, 0.0);
     // private_nh.param("publish_scale", publish_scale_, 100);
 		
+    planner_->setHasUnknown(allow_unknown_);
+    
     //get the tf prefix
     ros::NodeHandle prefix_nh;
     tf_prefix_ = tf::getPrefixParam(prefix_nh);
