@@ -32,7 +32,7 @@ namespace static_planner{
 	void CostmapWrapper::initialize(){
 		getVertexIndex();
 		getNewCostsOfNewCostmap();
-                recordWindowCost();
+                // recordWindowCost();
 		is_initialized_ = true;
 	}
 	
@@ -212,7 +212,7 @@ namespace static_planner{
 	    // 	   return 1;
 	    // }
  
-            if(costs_[index] < costmap_2d::INSCRIBED_INFLATED_OBSTACLE || costs_[index] == costmap_2d::NO_INFORMATION){
+            if(costs_[index] < (costmap_2d::INSCRIBED_INFLATED_OBSTACLE - 5) || (unknown_ && costs_[index] == costmap_2d::NO_INFORMATION)){
                 cnt_cost_0_++;
                 return 0;
             }
