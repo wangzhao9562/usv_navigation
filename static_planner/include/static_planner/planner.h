@@ -7,7 +7,7 @@ namespace static_planner {
 class Planner {
     public:
         Planner(int nx, int ny) :
-                unknown_(true), lethal_cost_(253), neutral_cost_(50), factor_(3.0){
+                unknown_(false), lethal_cost_(253), neutral_cost_(50), factor_(3.0){
             setSize(nx, ny);
         }
 		
@@ -26,7 +26,9 @@ class Planner {
             ny_ = ny;
             ns_ = nx * ny;
         } /**< sets or resets the size of the map */
-        void setLethalCost(unsigned char lethal_cost) {
+        
+
+	void setLethalCost(unsigned char lethal_cost) {
             lethal_cost_ = lethal_cost;
         }
         void setNeutralCost(unsigned char neutral_cost) {
@@ -39,9 +41,9 @@ class Planner {
             unknown_ = unknown;
         }
 		
-		void setRoughLength(double rough_lenth){
-			rough_lenth_ = rough_lenth;
-		}
+	void setRoughLength(double rough_lenth){
+		rough_lenth_ = rough_lenth;
+	}
 
     protected:
         inline int toIndex(int x, int y) {
@@ -54,7 +56,7 @@ class Planner {
         int cells_visited_;
         float factor_;
 		
-		double rough_lenth_;
+	double rough_lenth_;
 };
 
 } //end namespace static_planner
