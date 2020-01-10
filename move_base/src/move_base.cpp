@@ -110,8 +110,8 @@ namespace move_base {
     private_nh.param("conservative_reset_dist", conservative_reset_dist_, 3.0);
 
     private_nh.param("shutdown_costmaps", shutdown_costmaps_, false);
-    private_nh.param("clearing_rotation_allowed", clearing_rotation_allowed_, true);
-    private_nh.param("recovery_behavior_enabled", recovery_behavior_enabled_, true);
+    private_nh.param("clearing_rotation_allowed", clearing_rotation_allowed_, false);
+    private_nh.param("recovery_behavior_enabled", recovery_behavior_enabled_, false);
 
     //create the ros wrapper for the planner's costmap... and initializer a pointer we'll use with the underlying map
     planner_costmap_ros_ = new costmap_2d::Costmap2DROS("global_costmap", tf_);
@@ -120,7 +120,7 @@ namespace move_base {
     //initialize the global planner
     try {
       planner_ = bgp_loader_.createInstance(global_planner);
-      ROS_INFO("create global planner %s", global_planner.c_str());
+      ROS_INFO("move_base", "create global planner %s", global_planner.c_str());
       planner_->initialize(bgp_loader_.getName(global_planner), planner_costmap_ros_);
     } catch (const pluginlib::PluginlibException& ex) {
       ROS_FATAL("Failed to create the %s planner, are you sure it is properly registered and that the containing library is built? Exception: %s", global_planner.c_str(), ex.what());
@@ -134,7 +134,7 @@ namespace move_base {
     //create a local planner
     try {
       tc_ = blp_loader_.createInstance(local_planner);
-      ROS_INFO("Created local_planner %s", local_planner.c_str());
+      ROS_INFO("move_base", "Created local_planner %s", local_planner.c_str());
       tc_->initialize(blp_loader_.getName(local_planner), &tf_, controller_costmap_ros_);
     } catch (const pluginlib::PluginlibException& ex) {
       ROS_FATAL("Failed to create the %s planner, are you sure it is properly registered and that the containing library is built? Exception: %s", local_planner.c_str(), ex.what());
@@ -222,7 +222,7 @@ namespace move_base {
     if(config.base_global_planner != last_config_.base_global_planner) {
       boost::shared_ptr<nav_core::BaseGlobalPlanner> old_planner = planner_;
       //initialize the global planner
-      ROS_INFO("Loading global planner %s", config.base_global_planner.c_str());
+      ROS_INFO("move_base", "Loading global planner %s", config.base_global_planner.c_str());
       try {
         planner_ = bgp_loader_.createInstance(config.base_global_planner);
 
@@ -341,15 +341,15 @@ namespace move_base {
     return true;
   }
 
-
+  // Discarded interface
   bool MoveBase::planService(nav_msgs::GetPlan::Request &req, nav_msgs::GetPlan::Response &resp){
     if(as_->isActive()){
-      ROS_ERROR("move_base must be in an inactive state to make a plan for an external user");
+      ROS_ERROR("move_base: must be in an inactive state to make a plan for an external user");
       return false;
     }
     //make sure we have a costmap for our planner
     if(planner_costmap_ros_ == NULL){
-      ROS_ERROR("move_base cannot make a plan for you because it doesn't have a costmap");
+      ROS_ERROR("move_base: cannot make a plan for you because it doesn't have a costmap");
       return false;
     }
 
@@ -359,7 +359,7 @@ namespace move_base {
     {
         tf::Stamped<tf::Pose> global_pose;
         if(!planner_costmap_ros_->getRobotPose(global_pose)){
-          ROS_ERROR("move_base cannot make a plan for you because it could not get the start pose of the robot");
+          ROS_ERROR("move_base: cannot make a plan for you because it could not get the start pose of the robot");
           return false;
         }
         tf::poseStampedTFToMsg(global_pose, start);
@@ -470,14 +470,14 @@ namespace move_base {
 
     //since this gets called on handle activate
     if(planner_costmap_ros_ == NULL) {
-      ROS_ERROR("Planner costmap ROS is NULL, unable to create global plan");
+      ROS_ERROR("move_base: Planner costmap ROS is NULL, unable to create global plan");
       return false;
     }
 
     //get the starting pose of the robot
     tf::Stamped<tf::Pose> global_pose;
     if(!planner_costmap_ros_->getRobotPose(global_pose)) {
-      ROS_WARN("Unable to get starting pose of robot, unable to create global plan");
+      ROS_WARN("move_base: Unable to get starting pose of robot, unable to create global plan");
       return false;
     }
 
@@ -490,7 +490,7 @@ namespace move_base {
         is_get_plan = planner_->makePlan(start, goal, plan);
     }
     catch(std::exception& e){
-        ROS_INFO("fail to make plan in make plan function");
+        ROS_INFO("move_base", "fail to make plan in make plan function");
     }
 
     // if(!planner_->makePlan(start, goal, plan) || plan.empty())
@@ -524,7 +524,7 @@ namespace move_base {
   bool MoveBase::isQuaternionValid(const geometry_msgs::Quaternion& q){
     //first we need to check if the quaternion has nan's or infs
     if(!std::isfinite(q.x) || !std::isfinite(q.y) || !std::isfinite(q.z) || !std::isfinite(q.w)){
-      ROS_ERROR("Quaternion has nans or infs... discarding as a navigation goal");
+      ROS_ERROR("move_base: Quaternion has nans or infs... discarding as a navigation goal");
       return false;
     }
 
@@ -532,7 +532,7 @@ namespace move_base {
 
     //next, we need to check if the length of the quaternion is close to zero
     if(tf_q.length2() < 1e-6){
-      ROS_ERROR("Quaternion has length close to zero... discarding as navigation goal");
+      ROS_ERROR("move_base: Quaternion has length close to zero... discarding as navigation goal");
       return false;
     }
 
@@ -544,7 +544,7 @@ namespace move_base {
     double dot = up.dot(up.rotate(tf_q.getAxis(), tf_q.getAngle()));
 
     if(fabs(dot - 1) > 1e-3){
-      ROS_ERROR("Quaternion is invalid... for navigation the z-axis of the quaternion must be close to vertical.");
+      ROS_ERROR("move_base: Quaternion is invalid... for navigation the z-axis of the quaternion must be close to vertical.");
       return false;
     }
 
@@ -564,7 +564,7 @@ namespace move_base {
       tf_.transformPose(global_frame, goal_pose, global_pose);
     }
     catch(tf::TransformException& ex){
-      ROS_WARN("Failed to transform the goal pose from %s into the %s frame: %s",
+      ROS_WARN("move_base: Failed to transform the goal pose from %s into the %s frame: %s",
           goal_pose.frame_id_.c_str(), global_frame.c_str(), ex.what());
       return goal_pose_msg;
     }
@@ -609,7 +609,7 @@ namespace move_base {
          gotPlan = n.ok() && makePlan(temp_goal, *planner_plan_);
       }
       catch(std::exception& e){
-         ROS_INFO("failed to make plan in plan thread");
+         ROS_INFO("move_base", "failed to make plan in plan thread");
       }
       if(gotPlan){
         ROS_DEBUG_NAMED("move_base_plan_thread","Got Plan with %zu points!", planner_plan_->size());
@@ -643,6 +643,8 @@ namespace move_base {
         //is negative (the default), it is just ignored and we have the same behavior as ever
         lock.lock();
         planning_retries_++;
+        
+	// if global planning exceeds the limited time, set status as CLEARING 
         if(runPlanner_ &&
            (ros::Time::now() > attempt_end || planning_retries_ > uint32_t(max_planning_retries_))){
           //we'll move into our obstacle clearing mode
@@ -659,8 +661,7 @@ namespace move_base {
       lock.lock();
 
       //setup sleep interface if needed
-     
-      /* planner_frequency_ is unecessary
+      /* in usv move_base, planner frequency is unnecessary
       if(planner_frequency_ > 0){
         ros::Duration sleep_time = (start_time + ros::Duration(1.0/planner_frequency_)) - ros::Time::now();
         if (sleep_time > ros::Duration(0.0)){
@@ -668,7 +669,7 @@ namespace move_base {
           timer = n.createTimer(sleep_time, &MoveBase::wakePlanner, this);
         }
       }
-      */ 
+      */
     }
   }
 
@@ -681,7 +682,7 @@ namespace move_base {
 
     geometry_msgs::PoseStamped goal = goalToGlobalFrame(move_base_goal->target_pose);
     state_ = PLANNING;
-    ROS_INFO("Switch move_base state to planning");
+    ROS_INFO("move_base", "Switch move_base state to planning");
 	
     //we have a goal so start the planner
     boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
@@ -713,7 +714,7 @@ namespace move_base {
     {
       if(c_freq_change_)
       {
-        ROS_INFO("Setting controller frequency to %.2f", controller_frequency_);
+        ROS_INFO("move_base","Setting controller frequency to %.2f", controller_frequency_);
         r = ros::Rate(controller_frequency_);
         c_freq_change_ = false;
       }
@@ -811,7 +812,7 @@ namespace move_base {
       //make sure to sleep for the remainder of our cycle time
       // if(r.cycleTime() > ros::Duration(1 / controller_frequency_) && state_ == CONTROLLING)
 	  if(r.cycleTime() > ros::Duration(1 / controller_frequency_) && state_ == FOLLOWING)
-        ROS_WARN("Control loop missed its desired rate of %.4fHz... the loop actually took %.4f seconds", controller_frequency_, r.cycleTime().toSec());
+        ROS_WARN("move_base: Control loop missed its desired rate of %.4fHz... the loop actually took %.4f seconds", controller_frequency_, r.cycleTime().toSec());
     }
 
     //wake up the planner thread so that it can exit cleanly
@@ -914,7 +915,7 @@ namespace move_base {
         break;
  
       case AVOIDING:
-        ROS_INFO("move_base: In avoiding state");
+        ROS_INFO("move_base: AVOIDING");
         ROS_DEBUG_NAMED("move_base", "In avoding state.");
 
         // check if we've reached the goal
@@ -930,11 +931,13 @@ namespace move_base {
           as_->setSucceeded(move_base_msgs::MoveBaseResult(), "Goal reached");
           return true;
         }
+	/*
         if(oscillation_timeout_ > 0.0 && last_oscillation_reset_ + ros::Duration(oscillation_timeout_) < ros::Time::now()){
           publishZeroVelocity();
           state_ = CLEARING;
           recovery_trigger_ = OSCILLATION_R;
         }
+	*/
         else{
           // if TP is not blocked, switch state from avoiding to planning
           if(tc_->isStopAvoidance()){
@@ -1033,10 +1036,12 @@ namespace move_base {
       case CLEARING:
         ROS_INFO("move_base: CLEARING");
         ROS_DEBUG_NAMED("move_base","In clearing/recovery state");
-        //we'll invoke whatever recovery behavior we're currently on if they're enabled
+
+	// Recovery behavior is reserved. However, for usv there is no available method to execute similar action. 
+        // we'll invoke whatever recovery behavior we're currently on if they're enabled
         if(recovery_behavior_enabled_ && recovery_index_ < recovery_behaviors_.size()){
           ROS_DEBUG_NAMED("move_base_recovery","Executing behavior %u of %zu", recovery_index_, recovery_behaviors_.size());
-          recovery_behaviors_[recovery_index_]->runBehavior();
+          // recovery_behaviors_[recovery_index_]->runBehavior();
 
           //we at least want to give the robot some time to stop oscillating after executing the behavior
           last_oscillation_reset_ = ros::Time::now();
