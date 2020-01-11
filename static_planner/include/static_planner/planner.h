@@ -1,7 +1,7 @@
 #ifndef _PLANNER_H
 #define _PLANNER_H
 #include <static_planner/planner_core.h>
-          
+ 
 namespace static_planner {
 
 class Planner {
@@ -11,7 +11,7 @@ class Planner {
             setSize(nx, ny);
         }
 		
-		virtual bool getPlan(unsigned char* costs, double start_x, double start_y, double start_th, double end_x, double end_y, double end_th, int cycles,
+		virtual bool getPlan(costmap_2d::Costmap2D* costs, double start_x, double start_y, double start_th, double end_x, double end_y, double end_th, int cycles,
 			 std::vector< std::pair<float, float> >& plan) = 0;
 			 
         virtual bool searchPath(int* costs, double start_x, double start_y, double start_th, double end_x, double end_y, double end_th, int cycles) = 0;
@@ -27,6 +27,9 @@ class Planner {
             ns_ = nx * ny;
         } /**< sets or resets the size of the map */
         
+	nav_msgs::OccupancyGrid getOccupancyGrid(){
+		return grid_;
+	}
 
 	void setLethalCost(unsigned char lethal_cost) {
             lethal_cost_ = lethal_cost;
@@ -41,8 +44,8 @@ class Planner {
             unknown_ = unknown;
         }
 		
-	void setRoughLength(double rough_lenth){
-		rough_lenth_ = rough_lenth;
+	void setRoughLength(double rough_length){
+		rough_length_ = rough_length;
 	}
 
     protected:
@@ -55,8 +58,10 @@ class Planner {
         unsigned char lethal_cost_, neutral_cost_;
         int cells_visited_;
         float factor_;
-		
-	double rough_lenth_;
+
+	nav_msgs::OccupancyGrid grid_;
+			
+	double rough_length_;
 };
 
 } //end namespace static_planner
