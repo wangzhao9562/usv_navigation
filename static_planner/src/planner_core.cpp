@@ -4,7 +4,7 @@
 #include <costmap_2d/cost_values.h>
 #include <costmap_2d/costmap_2d.h>
 #include <static_planner/ad_astar.h>
-
+#include <nav_msgs/OccupancyGrid.h>
 #include <exception>
 
 //register this planner as a BaseGlobalPlanner plugin
@@ -57,17 +57,17 @@ void StaticPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
     private_nh.param("old_navfn_behavior", old_navfn_behavior_, false);
     private_nh.param("use_orientation_filter", use_orientation_filter_, true);
     private_nh.param("usv_bspline_filter", use_bspline_filter_, true);
-    private_nh.param("interpolation_interval", interpolation_interval_, 0.15);	 
-    private_nh.param("wrapper_resolution", wrapper_resolution, 2 * costmap->getResolution());
+    private_nh.param("interpolation_interval", interpolation_interval_, 0.20);	 
+    private_nh.param("wrapper_resolution", wrapper_resolution, 0.5);
 
     if(!old_navfn_behavior_)
       convert_offset_ = 0.5;
     else
       convert_offset_ = 0.0;
 		
-    planner_ = new AdAStarPlanner(cx, cy, costmap->getResolution());
+    planner_ = new AdAStarPlanner(cx, cy, frame_id_, costmap->getResolution());
     planner_->setRoughLength(wrapper_resolution);
-		
+	
     if(use_orientation_filter_ && use_bspline_filter_){
       orientation_filter_ = new BsplineFilter(interpolation_interval_);
     }
@@ -77,6 +77,7 @@ void StaticPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
 		
     plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
     filtered_plan_pub_ = private_nh.advertise<nav_msgs::Path>("filtered_path", 1);	
+    wrapper_grid_pub_ = private_nh.advertise<nav_msgs::OccupancyGrid>("wrapper_grid", 1);
 	
     private_nh.param("allow_unknown", allow_unknown_, false);
     private_nh.param("planner_window_x", planner_window_x_, 0.0);
@@ -103,13 +104,11 @@ void StaticPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
 }
 
 void StaticPlanner::reconfigureCB(static_planner::StaticPlannerConfig& config, uint32_t level) {
+  ROS_WARN("static_planner: reconfiguration");
   planner_->setLethalCost(config.lethal_cost);
-  // path_maker_->setLethalCost(config.lethal_cost);
   planner_->setNeutralCost(config.neutral_cost);
   planner_->setFactor(config.cost_factor);
   planner_->setRoughLength(config.rough_length);
-  orientation_filter_->setMode(config.orientation_mode);
-  orientation_filter_->setWindowSize(config.orientation_window_size);
 }
 
 void StaticPlanner::clearRobotCell(const tf::Stamped<tf::Pose>& global_pose, unsigned int mx, unsigned int my) {
@@ -241,7 +240,8 @@ bool StaticPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
   bool found_legal = false;
 
   try{
-    found_legal = planner_->getPlan(costmap_->getCharMap(), start_x, start_y, start_th, goal_x, goal_y, goal_th, nx * ny * 2, path);
+    // found_legal = planner_->getPlan(costmap_->getCharMap(), start_x, start_y, start_th, goal_x, goal_y, goal_th, nx * ny * 2, path);
+    found_legal = planner_->getPlan(costmap_, start_x, start_y, start_th, goal_x, goal_y, goal_th, nx * ny * 2, path);
   }
   catch(std::exception& e){
     ROS_ERROR("Error in global planning");
@@ -304,6 +304,8 @@ void StaticPlanner::publishPlan(const std::vector<geometry_msgs::PoseStamped>& p
   }
 
   plan_pub_.publish(gui_path);
+
+  wrapper_grid_pub_.publish(planner_->getOccupancyGrid());
 }
 
 void StaticPlanner::publishFilteredPlan(const std::vector<geometry_msgs::PoseStamped>& path){
