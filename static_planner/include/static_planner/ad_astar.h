@@ -1,11 +1,13 @@
 #ifndef _AD_ASTAR_H
 #define _AD_ASTAR_H
 
+#include <costmap_2d/costmap_2d.h>
 #include <static_planner/planner_core.h>
 #include <static_planner/planner.h>
 #include <static_planner/costmap_wrapper.h>
 #include <vector>
 #include <algorithm>
+#include <string>
 
 namespace static_planner {
 class Index {
@@ -67,14 +69,15 @@ struct greater1 {
 
 class AdAStarPlanner : public Planner {
     public:
-        AdAStarPlanner(int nx, int ny, double resolution);
+        AdAStarPlanner(int nx, int ny, std::string global_frame, double resolution);
 		
 		~AdAStarPlanner(){};
 		
         // bool searchPath(unsigned char* costs, double start_x, double start_y, double start_th, double end_x, double end_y, double end_th, int cycles);
-        bool getPlan(unsigned char* costs, double start_x, double start_y, double start_th, double end_x, double end_y, double end_th, int cycles,
+        bool getPlan(costmap_2d::Costmap2D* costmap, double start_x, double start_y, double start_th, double end_x, double end_y, double end_th, int cycles,
 					 std::vector< std::pair<float, float> >& plan);
-    protected:
+
+	protected:
 	    // bool searchPath(unsigned char* costs, double start_x, double start_y, double start_th, double end_x, double end_y, double end_th, int cycles);
 		bool searchPath(int* costs, double start_x, double start_y, double start_th, double end_x, double end_y, double end_th, int cycles);
 	
@@ -102,6 +105,7 @@ class AdAStarPlanner : public Planner {
 	float total_distance_;
 		
 	double resolution_;
+	std::string global_frame_; 
 		
 	CostmapWrapper wrapper_;
 };
