@@ -2,13 +2,19 @@
 #define _COSTMAP_WRAPPER_H
  
 #include<map>
+#include<string>
+#include<ros/ros.h>
+#include<nav_msgs/OccupancyGrid.h>
 #include<costmap_2d/cost_values.h>
+#include<costmap_2d/costmap_2d.h>
 
 namespace static_planner{
 	
 class CostmapWrapper{
 	public:
-	    CostmapWrapper(){ is_initialized_ = false; };
+	    CostmapWrapper() : global_map_(nullptr), new_costs_(nullptr){ 
+		is_initialized_ = false; 
+	    };
 	
 	    /* 
          * @breif Construct function, compute radius of robot in costmap
@@ -20,17 +26,21 @@ class CostmapWrapper{
          * @Param r_in_world radius of robot in world
          * @Param resolution resolution of costmap
          */
-		CostmapWrapper(unsigned char* costs, int position_index, int lethal_cost, int map_w, int map_h, double rough_len_world, double resolution, bool unknown);
+		CostmapWrapper(costmap_2d::Costmap2D* costmap, std::string global_frame, int position_index, int lethal_cost, int map_w, int map_h, double rough_len_world, double resolution, bool unknown);
 
 		~CostmapWrapper();
 		
-		void initialize(unsigned char* costs, int position_index, int lethal_cost, int map_w, int map_h, double rough_len_world, double resolution, bool unknown);
+		void initialize(costmap_2d::Costmap2D* costmap, std::string global_frame, int position_index, int lethal_cost, int map_w, int map_h, double rough_len_world, double resolution, bool unknown);
 		
 		void initialize();
   	
 		int* getNewCosts()const{
 			if(is_initialized_)
 				return new_costs_;
+		}
+		
+		nav_msgs::OccupancyGrid getOccupancyGrid(){
+			return grid_;
 		}
 		
 		int getNewMapSize()const{
@@ -125,6 +135,7 @@ class CostmapWrapper{
          */	
 		void getNewCostsOfNewCostmap();
 	
+	    void getWrapperGrid();
 	
 	    /* members */
 	    unsigned char* costs_;
@@ -152,11 +163,19 @@ class CostmapWrapper{
                 int lowerleft_x_;
                 int lowerleft_y_;
 
+		double origin_x_; // coordinate in world frame
+		double origin_y_;
+
                 int cnt_cost_1_;
                 int cnt_cost_0_;
+
+		nav_msgs::OccupancyGrid grid_; // rviz visualization
+		costmap_2d::Costmap2D* global_map_;
+		
+		std::string global_frame_;
 };
 		
-}
+}; // end of namespace
 
 
 #endif
