@@ -24,6 +24,7 @@ ps: name of catkin space should be replace by your own.
 ## Notice    
 1. For using existed simulation tools and third-part libraries, package name is not modifed to satiesfy with the demand of interface(name is still move_base), please don't mix this package with origin navigation stack in one catkin space.
 2. Programe is developed based on origin navigation stack in version of kinetic devel, the recommended system version is ubuntu 16.04LTS. If your ros version is melodic, you should modify the packages relative to turtlebot in launch file, and install turtlebot simulator in responding version.
+3. This navigation stack is in developing, formal branch is only the version tested through simulation.
 
 ## Frame  
 Frame of new navigation stack:  
