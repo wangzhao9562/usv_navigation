@@ -1,6 +1,6 @@
 #include <static_planner/costmap_wrapper.h>
 #include <math.h>
-#include <ros/ros.h>
+#include <ros/ros.h> // for test
 #include <sstream>
 #include <fstream>
 #include <string>
@@ -8,8 +8,10 @@
 
 namespace static_planner{
 	
-	CostmapWrapper::CostmapWrapper(unsigned char* costs, int position_index, int lethal_cost, int map_w, int map_h, double rough_len_world, double resolution, bool unknown){
-		costs_ = costs;
+	CostmapWrapper::CostmapWrapper(costmap_2d::Costmap2D* costmap, std::string global_frame, int position_index, int lethal_cost, int map_w, int map_h, double rough_len_world, double resolution, bool unknown){
+		global_map_ = costmap;
+		global_frame_ = global_frame;
+		costs_ = global_map_->getCharMap();
 		new_costs_ = nullptr;
 		position_index_ = position_index;
 		lethal_cost_ = lethal_cost;
@@ -32,13 +34,16 @@ namespace static_planner{
 	void CostmapWrapper::initialize(){
 		getVertexIndex();
 		getNewCostsOfNewCostmap();
-                // recordWindowCost();
+                getWrapperGrid();
+		// recordWindowCost();
 		is_initialized_ = true;
 	}
 	
-	void CostmapWrapper::initialize(unsigned char* costs, int position_index, int lethal_cost, int map_w, int map_h, double rough_len_world, double resolution, bool unknown){
+	void CostmapWrapper::initialize(costmap_2d::Costmap2D* costmap, std::string global_frame, int position_index, int lethal_cost, int map_w, int map_h, double rough_len_world, double resolution, bool unknown){
 		if(!is_initialized_){
-			costs_ = costs;
+		    global_map_ = costmap;
+		    global_frame_ = global_frame;
+                    costs_ = costmap->getCharMap();
 		    new_costs_ = nullptr;
 		    position_index_ = position_index;
 		    lethal_cost_ = lethal_cost;
@@ -50,7 +55,7 @@ namespace static_planner{
                     unknown_ = unknown;
 	        
 		    rough_len_map_ = static_cast<int>(std::ceil(rough_len_world_ / resolution_));
-		    
+		    ROS_WARN_STREAM("static_planer: rough len: " << rough_len_world_ << "resolution: " << resolution_);  
                     test_last_index_ = -1; 
             
                     cnt_cost_1_ = 0;
@@ -65,8 +70,9 @@ namespace static_planner{
                          delete new_costs_;
                          new_costs_ = nullptr;
                     }
-
-                    costs_ = costs;
+		    global_map_ = costmap;
+                    costs_ = costmap->getCharMap();
+		    global_frame_ = global_frame;
                     position_index_ = position_index;
                     lethal_cost_ = lethal_cost;
                     map_width_ = map_w;
@@ -165,9 +171,13 @@ namespace static_planner{
 		new_map_width_ = cntx_ll + cntx_ur;
 		new_map_height_ = cnty_ll + cnty_ur;
 
+		ROS_WARN_STREAM("static_map: rough_factor: " << rough_factor << " new map: " << new_map_width_ << "," << new_map_height_ << " origin: " << map_width_ << "," << map_height_);
+
                 lowerleft_x_ = x_ll;
                 lowerleft_y_ = y_ll;
-		
+	
+		global_map_->mapToWorld(lowerleft_x_, lowerleft_y_, origin_x_, origin_y_); // transform coordinate to world frame
+	
 		position_index_new_ = cntx_ll + cnty_ll * new_map_width_;
 		lowerleft_index_ = x_ll + y_ll * map_width_;
         
@@ -191,6 +201,26 @@ namespace static_planner{
                                 int index_in_new_costs = x + y * new_map_width_;
 				new_costs_[index_in_new_costs] = getCostOfWindow(x_in_costs, y_in_costs);
 			    project_table_[index_in_new_costs] = index_in_costs;
+			}
+		}
+		
+	}
+
+	void CostmapWrapper::getWrapperGrid(){
+		grid_.header.frame_id = global_frame_;
+		grid_.header.stamp = ros::Time::now();
+		grid_.info.resolution = rough_len_world_;
+		grid_.info.width = new_map_width_;
+		grid_.info.height = new_map_height_;
+		grid_.info.origin.position.x = origin_x_;
+		grid_.info.origin.position.y = origin_y_;
+		grid_.data.resize(grid_.info.width * grid_.info.height);
+		for(unsigned int i = 0; i < grid_.data.size(); ++i){
+			if(new_costs_[i] == 1){
+				grid_.data[i] = 255;
+			}
+			else{
+				grid_.data[i] = 0;
 			}
 		}
 	}
