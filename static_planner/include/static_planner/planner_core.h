@@ -99,7 +99,9 @@ class StaticPlanner : public nav_core::BaseGlobalPlanner {
         std::string frame_id_;
         ros::Publisher plan_pub_;
         ros::Publisher filtered_plan_pub_;
- 
+
+	ros::Publisher wrapper_grid_pub_; 
+
         bool initialized_, allow_unknown_;
 
     private:
