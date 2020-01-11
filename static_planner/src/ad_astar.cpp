@@ -4,21 +4,23 @@
 #include<fstream>
 #include<ios>
 #include<math.h>
+#include<ros/ros.h>
 
 namespace static_planner {
 
-AdAStarPlanner::AdAStarPlanner(int xs, int ys, double resolution) :
-        Planner(xs, ys), end_index_(NULL), resolution_(resolution)
+AdAStarPlanner::AdAStarPlanner(int xs, int ys, std::string global_frame, double resolution) :
+        Planner(xs, ys), end_index_(NULL), global_frame_(global_frame), 
+		resolution_(resolution)
 {
   
 }
 
-bool AdAStarPlanner::getPlan(unsigned char* costs, double start_x, double start_y, double start_th, double end_x, double end_y, double end_th, int cycles, std::vector< std::pair<float, float> >& plan)
+bool AdAStarPlanner::getPlan(costmap_2d::Costmap2D* costmap, double start_x, double start_y, double start_th, double end_x, double end_y, double end_th, int cycles, std::vector< std::pair<float, float> >& plan)
 {
         double start_x_up = std::ceil(start_x), start_y_up = std::ceil(start_y);
         double end_x_up = std::ceil(end_x), end_y_up = std::ceil(end_y);
 
-	wrapper_.initialize(costs, toIndex(start_x_up, start_y_up), lethal_cost_, nx_, ny_, rough_lenth_, resolution_, unknown_);
+	wrapper_.initialize(costmap, global_frame_, toIndex(start_x_up, start_y_up), lethal_cost_, nx_, ny_, this->rough_length_, resolution_, unknown_);
         // wrapper_.printNewCosts();
         // wrapper_.printOriCosts();
 	
@@ -31,6 +33,7 @@ bool AdAStarPlanner::getPlan(unsigned char* costs, double start_x, double start_
 	double end_y_wrapper = end_wrapper.second;
 	
 	int* new_costs = wrapper_.getNewCosts();
+	this->grid_ = wrapper_.getOccupancyGrid();
 	
 	// if(searchPath(costs, start_x, start_y, start_th, end_x, end_y, end_th, cycles)){
 	if(searchPath(new_costs, start_x_wrapper, start_y_wrapper, start_th, end_x_wrapper, end_y_wrapper, end_th, wrapper_.getNewMapWidth() * wrapper_.getNewMapHeight() * 2)){
