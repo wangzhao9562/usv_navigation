@@ -66,9 +66,24 @@ target_link_libraries(tcp_client_test
 	${catkin_LIBRARIES}
 )
 
+add_executable(grid_data_send_test test/grid_data_send_test.cpp)
+add_dependencies(grid_data_send_test ${${PROJECT_NAME}_EXPORTED_TARGTES} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(grid_data_send_test 
+	tcp_dependencies
+        ${SDL_LIBRARY}
+        ${SDL_IMAGE_LIBRARIES}
+	${catkin_LIBRARIES})
+
 add_executable(tcp_server_test test/tcp_server_test.cpp)
 add_dependencies(tcp_server_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(tcp_server_test
+	tcp_dependencies
+	${catkin_LIBRARIES}
+)
+
+add_executable(grid_data_recv_test test/grid_data_recv_test.cpp)
+add_dependencies(grid_data_recv_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(grid_data_recv_test
 	tcp_dependencies
 	${catkin_LIBRARIES}
 )
