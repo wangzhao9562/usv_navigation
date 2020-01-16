@@ -54,13 +54,6 @@ public:
      * @param port TCP port number
      */
     TCPClient(std::string ip, size_t port, size_t buf_size = 2048);
-
-    /**
-     * @brief Constructor
-     * @param ip TCP ip address
-     * @param port TCP port number
-     */
-    TCPClient(std::string ip, size_t port, buffer_type& buf, size_t buf_size = 2048);
     
     /**
      * @brief Deconstructor
@@ -104,11 +97,6 @@ private:
      */
     void connect();
     
-    /**
-     * @brief Initialize TCP components, such as sockets
-     * @param buf Vector to collect data 
-     */
-    void connect(buffer_type& buf);
     
    /**
      * @brief recv fuction : discard
@@ -117,16 +105,11 @@ private:
 
     /**
      * @brief Handler of tcp connection
-     */
-    void connHandler(const error_code& ec, sock_ptr sock);
-
-    /**
-     * @brief Handler of tcp connection
-     * @param buf Vector to collect data 
      * @param ec Default error code 
      * @param sock Socket pointer
      */
-    void connHandler(buffer_type& buf, const error_code& ec, sock_ptr sock);
+    void connHandler(const error_code& ec, sock_ptr sock);
+
     
     /**
      * @brief Handler to read data in buffer
