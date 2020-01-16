@@ -47,7 +47,7 @@ void TCPServer::acceptHandler(const error_code& ec, sock_ptr sock){
 	{
 		read_lock read_buf(buf_mutex_); // read buffer data
 	    	try{
-		sock->async_write_some(boost::asio::buffer(write_buf_, w_buf_len_), boost::bind(&this_type::writeHandler, this, boost::asio::placeholders::error));
+			sock->async_write_some(boost::asio::buffer(write_buf_, w_buf_len_), boost::bind(&this_type::writeHandler, this, boost::asio::placeholders::error));
 		}
 		catch(std::exception& e){
 			ROS_ERROR("tcp_server: error to send message");
