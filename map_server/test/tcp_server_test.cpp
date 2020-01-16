@@ -47,15 +47,6 @@ int main(int argc, char* argv[]){
 	}
 
 	try{
-		/*
-		const char* str = "Helllo world!";
-		uint8_t* test_data;
-
-		ROS_INFO_STREAM("tcp_server_test: Start buffer setting ");
-		std::cout << "str len: " << std::strlen(str) << std::endl;	
-		
-		test_data = reinterpret_cast<uint8_t*>(const_cast<char*>(str));
-		*/
 		ROS_INFO("tcp_server_test: set buffer");
 		tcp_s.setWriteBuffer(map_info, sizeof(map_info) / sizeof(uint8_t));
 

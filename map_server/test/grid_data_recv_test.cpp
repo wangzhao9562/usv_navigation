@@ -15,11 +15,15 @@
 #include "map_server/grid_data_pack_protocol.h"
 
 void testPrintBuffer(std::vector<uint8_t>& buf){
-	std::cout << "Received buffer: ";
-	for(auto element : buf){
-		std::cout << static_cast<int>(element) << " ";
+	if(buf.size() > 0){
+		for(auto element : buf){
+			std::cout << static_cast<int>(element) << " ";
+		}
+		std::cout << std::endl;
 	}
-	std::cout << std::endl;
+	else{
+		ROS_WARN("grid_data_recv_test: buffer is empty!");
+	}
 }
 
 unsigned char* gridDataUnpack(std::vector<uint8_t>& buf, int h_ind, int t_ind){
@@ -32,10 +36,14 @@ unsigned char* gridDataUnpack(std::vector<uint8_t>& buf, int h_ind, int t_ind){
 	if(sec_bit < buf.size() && w_bit < buf.size() && h_bit < buf.size()){
 		int map_w = static_cast<int>(buf[w_bit]);
 		int map_h = static_cast<int>(buf[h_bit]);
+
+		ROS_INFO_STREAM("grid_data_recv_test: bitset position " << h_ind
+			<< " " << t_ind);
 		
-		if(t_ind - h_bit == map_w * map_h - 1){
+		if(t_ind - h_ind == map_w * map_h + 4){
+			ROS_INFO("grid_data_recv_test: print recv grid info ");
 			for(int c_ind = h_bit + 1; c_ind < t_ind; ++c_ind){
-				std::cout << buf[c_ind] << " ";
+				std::cout << static_cast<int>(buf[c_ind]) << " ";
 				grid_data = &buf[c_ind];
 				++grid_data;
 			}	
@@ -49,13 +57,17 @@ unsigned char* gridDataUnpack(std::vector<uint8_t>& buf, int h_ind, int t_ind){
 
 void testGetGridData(std::vector<uint8_t>& buf){
 	ROS_INFO("grid_data_recv_test: Receive buffer");
-	testPrintBuffer(buf);
+	// testPrintBuffer(buf);
 	if(buf.size()){
 		for(int ind = 0; ind < buf.size(); ++ind){
-			if(buf[ind] == GridDataPackProtocol::pack_head_){
+			if(static_cast<char>(buf[ind]) == GridDataPackProtocol::pack_head_){
+				ROS_INFO("grid_data_recv_test: Found header");
 				for(int b_ind = ind + 1; b_ind < buf.size(); ++b_ind){
-					gridDataUnpack(buf, ind, b_ind);
-					break;
+					if(static_cast<char>(buf[b_ind]) == GridDataPackProtocol::pack_tail_){
+						ROS_INFO("grid_data_recv_test: Found tail");
+						gridDataUnpack(buf, ind, b_ind);
+						break;
+					}
 				}
 			}
 		}
@@ -69,9 +81,10 @@ int main(int argc, char** argv){
 	std::vector<uint8_t> data_buf;
 
 	// set tcp client
-	TCPClient tcp_c("127.0.0.1", 16686, data_buf, 125);
-	tcp_c.setRecvProcess(boost::bind(&testGetGridData, data_buf));
-
+	TCPClient tcp_c("127.0.0.1", 16686, 125);
+	tcp_c.setRecvProcess(boost::bind(&testGetGridData, _1));
+	// tcp_c.setRecvProcess(boost::bind(&testPrintBuffer, _1));
+	
 	try{
 		tcp_c.run();
 	}

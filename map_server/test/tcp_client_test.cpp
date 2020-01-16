@@ -12,7 +12,7 @@
 #include "map_server/tcp_client.h"
 #include "map_server/mavlink/v2.0/arms_usv_nav/mavlink.h"
 
-void testMavUnpack(buffer_type& buf){
+void testMavUnpack(std::vector<uint8_t>& buf){
     if(buf.size()){
       for(int ind = 0; ind < buf.size(); ++ind){
         mavlink_message_t mav_msg;
@@ -26,57 +26,57 @@ void testMavUnpack(buffer_type& buf){
                 ROS_ERROR_STREAM("tcp_client: error in buffer" << unsigned(c));
         }*/
 
-        // ROS_INFO_STREAM("mav_link: parse char: " << unsigned(c));
+        // ROS_INFO_STREAM("tcp_client_test: parse char: " << unsigned(c));
         if(mavlink_parse_char(MAVLINK_COMM_0, c, &mav_msg, &status)){
-                ROS_INFO("mav_link: check message id");
+                ROS_INFO("tcp_client_test: check message id");
                 switch(mav_msg.msgid){
                         case MAVLINK_MSG_ID_MAP_INFO:
                         {
                                 // get map name
                                 uint8_t map_name[20];
-                                ROS_INFO("mav_link: start unpack");
+                                ROS_INFO("tcp_client_test: start unpack");
                                 mavlink_msg_map_info_get_map_name(&mav_msg, map_name);
-                                ROS_INFO("mav_link: get map name");
+                                ROS_INFO("tcp_client_test: get map name");
                                 const char* map_name_c = reinterpret_cast<char*>(map_name);
                                 std::string map_name_str = map_name_c;
                                 std::cout << "map_name: " << map_name_str << std::endl;
                                 // get map width 
                                 uint32_t map_width;
                                 map_width = mavlink_msg_map_info_get_map_width(&mav_msg);
-                                ROS_INFO("mav_link: get map width");
+                                ROS_INFO("tcp_client_test: get map width");
                                 std::cout << "map_width: " << map_width << std::endl;
                                 // get map height
                                 uint32_t map_height;
                                 map_height = mavlink_msg_map_info_get_map_height(&mav_msg);
-                                ROS_INFO("mav_link: get map height");
+                                ROS_INFO("tcp_client_test: get map height");
                                 std::cout << "map_height: " << map_height << std::endl;
                                 // get origin x
                                 uint32_t origin_x;
                                 origin_x = mavlink_msg_map_info_get_origin_x(&mav_msg);
-                                ROS_INFO("mav_link: get origin x");
+                                ROS_INFO("tcp_client_test: get origin x");
                                 std::cout << "origin_x: " << origin_x << std::endl;
                                 // get origin y
                                 uint32_t origin_y;
                                 origin_y = mavlink_msg_map_info_get_origin_y(&mav_msg);
 
-                                ROS_INFO("mav_link: get origin y");
+                                ROS_INFO("tcp_client_test: get origin y");
                                 std::cout << "origin_y: " << origin_y << std::endl;
                                 // get map x drift
                                 uint32_t drift_x;
                                 drift_x = mavlink_msg_map_info_get_x_in_last_map(&mav_msg);
-                                ROS_INFO("mav_link: get drift x");
+                                ROS_INFO("tcp_client_test: get drift x");
                                 std::cout << "drift_x: " << drift_x << std::endl;
                                 // get map y drift
                                 uint32_t drift_y;
                                 drift_y = mavlink_msg_map_info_get_y_in_last_map(&mav_msg);
-                                ROS_INFO("mav_link: get drift y");
+                                ROS_INFO("tcp_client_test: get drift y");
                                 std::cout << "drift_y: " << drift_y << std::endl;
                                 // get resolution
                                 float resolution;
                                 resolution = mavlink_msg_map_info_get_resolution(&mav_msg);
-                                ROS_INFO("mav_link: get resolution");
+                                ROS_INFO("tcp_client_test: get resolution");
                                 std::cout << "resolution: " << resolution << std::endl;
-                                ROS_INFO("tcp_client: unpacking finish");
+                                ROS_INFO("tcp_client_test: unpacking finish");
                         }
                                 break;
                         default:
@@ -84,6 +84,9 @@ void testMavUnpack(buffer_type& buf){
                 }
         }
       }
+    }
+    else{
+        ROS_WARN("tcp_client_test: buffer is empty!");
     }
 }
 
@@ -94,10 +97,11 @@ int main(int argc, char* argv[]){
 
 	std::vector<uint8_t> data_buf;
 
-	// TCPClient tcp_c("127.0.0.1", 16685, 256); // raw test
-	TCPClient tcp_c("127.0.0.1", 16685, data_buf, 256); // mavlink test
+	TCPClient tcp_c("127.0.0.1", 16685, 256); 
+	// TCPClient tcp_c("127.0.0.1", 16685, data_buf, 256); // mavlink test
 
-	tcp_c.setRecvProcess(boost::bind(&testMavUnpack, data_buf)); // set callback handler
+	// tcp_c.setRecvProcess(boost::bind(&testMavUnpack, data_buf)); // set callback handler
+	tcp_c.setRecvProcess(boost::bind(&testMavUnpack, _1)); // set callback handler
 
 	try{
 		tcp_c.run();

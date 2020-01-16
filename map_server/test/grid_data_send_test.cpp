@@ -69,11 +69,14 @@ int main(int argc, char* argv[]){
 	}
 
 	size_t map_size = map_height * map_width;
+	
+	size_t stack_size = map_size + 5;
+	uint8_t grid_data_stack[stack_size];
 
-	uint8_t grid_data_stack[map_size + 5];
 	grid_data_stack[0] = GridDataPackProtocol::pack_head_;
 	grid_data_stack[1] = GridDataPackProtocol::pack_sec_bit_;
-	grid_data_stack[map_size - 1] = GridDataPackProtocol::pack_tail_;
+	grid_data_stack[stack_size - 1] = GridDataPackProtocol::pack_tail_;
+	std::cout << static_cast<int>(grid_data_stack[stack_size - 1]) << std::endl;
 	grid_data_stack[2] = static_cast<uint8_t>(map_width);
 	grid_data_stack[3] = static_cast<uint8_t>(map_height);
 
@@ -82,7 +85,7 @@ int main(int argc, char* argv[]){
 	std::memcpy(copy_ptr, grid_data, map_size); // copy grid data into stack
 	
 	// print pixel array
-	testPrintArray(grid_data_stack, map_size);	
+	testPrintArray(grid_data_stack, stack_size);	
 
 	try{
 		ROS_INFO("grid_data_send_test: set buffer");
