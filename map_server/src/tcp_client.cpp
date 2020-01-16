@@ -20,11 +20,6 @@ TCPClient::TCPClient(std::string ip, size_t port, size_t buf_size) : tcp_buf_(bu
     connect();
 }
 
-TCPClient::TCPClient(std::string ip, size_t port, buffer_type& buf, size_t buf_size) : tcp_buf_(buf_size, 0), tcp_ep_(address_type::from_string(ip), port), sock_t_(nullptr), is_listen_(true), recv_proc_(boost::bind(&this_type::testPrint, this, _1)){
-    	
-    connect(buf);
-}
-
 TCPClient::~TCPClient(){
     // if(sock_t_ != nullptr){
     //     delete sock_t_;
@@ -62,13 +57,6 @@ void TCPClient::connect()
     sock->async_connect(tcp_ep_, boost::bind(&this_type::connHandler, this, boost::asio::placeholders::error, sock));
 }
 
-void TCPClient::connect(buffer_type& buf)
-{
-    sock_ptr sock(new socket_type(tcp_io_));
-    
-    sock->async_connect(tcp_ep_, boost::bind(&this_type::connHandler, this, buf, boost::asio::placeholders::error, sock));
-}
-
 void TCPClient::recvData(sock_ptr sock){
     while(is_listen_){
       sock->async_connect(tcp_ep_, boost::bind(&this_type::connHandler, 
@@ -86,7 +74,6 @@ void TCPClient::connHandler(const error_code& ec, sock_ptr sock){
     {
         write_lock write_buf(buf_mutex_); // writting buffer
         sock->async_read_some(boost::asio::buffer(tcp_buf_), boost::bind(&this_type::readHandler, this, boost::asio::placeholders::error));
-        // sock->async_read_some(boost::asio::buffer(tcp_buf_), boost::bind(&r_handler_, this, boost::asio::placeholders::error));
     }
     if(ros::ok()){
 	connect();
@@ -96,39 +83,31 @@ void TCPClient::connHandler(const error_code& ec, sock_ptr sock){
     }	
 }
 
-void TCPClient::connHandler(buffer_type& buf, const error_code& ec, sock_ptr sock){
-    if(ec){
-	ROS_WARN("tcp_client: error in connect");
-        return;
-    }
-    // read data from port
-    {
-        write_lock write_buf(buf_mutex_); // writting buffer
-        sock->async_read_some(boost::asio::buffer(buf), boost::bind(&this_type::readHandler, this, boost::asio::placeholders::error));
-        // sock->async_read_some(boost::asio::buffer(tcp_buf_), boost::bind(&r_handler_, this, boost::asio::placeholders::error));
-    }
-    if(ros::ok()){
-	connect();
-    }
-    else{
-        return;
-    }	
-}
 
 void TCPClient::readHandler(const error_code& ec){
     if(ec){
         return;
     }
     // testPrint(tcp_buf_); 
-    testMavUnpack(tcp_buf_);
+    // testMavUnpack(tcp_buf_);
+    
+    {
+        read_lock read_buf(buf_mutex_);
+        recv_proc_(tcp_buf_);
+    }
 }
 
 void TCPClient::testPrint(buffer_type& buf){
     // print data
-    for(auto x : buf){
-      std::cout << unsigned(x) << " ";
+    if(buf.size()){
+	for(auto x : buf){
+	    std::cout << unsigned(x) << " ";
+	}
+	std::cout << std::endl;
     }
-    std::cout << std::endl;
+    else{
+        ROS_WARN("tcp_client: buffer is empty!");
+    }
 }
 
 void TCPClient::testMavUnpack(buffer_type& buf){
