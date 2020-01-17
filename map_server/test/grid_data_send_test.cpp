@@ -28,7 +28,7 @@ int main(int argc, char* argv[]){
 	ros::NodeHandle nh;
 	
 	ROS_INFO("grid_data_send_test: prepare to create server");
-	TCPServer tcp_s(16686);
+	TCPServer tcp_s(6689);
 
 	SDL_Surface* img;
 	unsigned char* pixels;

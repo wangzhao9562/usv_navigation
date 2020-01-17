@@ -97,7 +97,7 @@ int main(int argc, char* argv[]){
 
 	std::vector<uint8_t> data_buf;
 
-	TCPClient tcp_c("127.0.0.1", 16685, 256); 
+	TCPClient tcp_c("127.0.0.1", 6688, 256); 
 	// TCPClient tcp_c("127.0.0.1", 16685, data_buf, 256); // mavlink test
 
 	// tcp_c.setRecvProcess(boost::bind(&testMavUnpack, data_buf)); // set callback handler

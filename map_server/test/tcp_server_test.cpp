@@ -17,19 +17,19 @@ int main(int argc, char* argv[]){
 	ros::NodeHandle nh;
 	
 	ROS_INFO("tcp_server_test: prepare to create server");
-	TCPServer tcp_s(16685);	
+	TCPServer tcp_s(6688);	
 
 	mavlink_message_t mav_msg;
 	uint8_t  map_info[256];
 	memset(map_info, 0, 256);
 	
-	const char* map_name_c = "yu jia lake";
+	const char* map_name_c = "test pic";
 	uint8_t* map_name = reinterpret_cast<uint8_t*>(const_cast<char*>(map_name_c));
 	uint32_t map_name_len = strlen(map_name_c) + 1;
-	uint32_t map_width = 800;
-	uint32_t map_height = 600;
-	uint32_t origin_x = 0;
-	uint32_t origin_y = 0;
+	uint32_t map_width = 10;
+	uint32_t map_height = 10;
+	uint32_t origin_x = 5;
+	uint32_t origin_y = 5;
 	uint32_t x_in_last_map = 0;
 	uint32_t y_in_last_map = 0;
 	float resolution = 0.05;

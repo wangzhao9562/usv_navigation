@@ -81,7 +81,7 @@ int main(int argc, char** argv){
 	std::vector<uint8_t> data_buf;
 
 	// set tcp client
-	TCPClient tcp_c("127.0.0.1", 16686, 125);
+	TCPClient tcp_c("127.0.0.1", 6689, 125);
 	tcp_c.setRecvProcess(boost::bind(&testGetGridData, _1));
 	// tcp_c.setRecvProcess(boost::bind(&testPrintBuffer, _1));
 	
