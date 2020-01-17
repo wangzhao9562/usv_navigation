@@ -21,6 +21,18 @@ if(YAMLCPP_VERSION VERSION_GREATER "0.5.0")
     add_definitions(-DHAVE_YAMLCPP_GT_0_5_0)
 endif()
 
+# self-defined message
+add_message_files(
+    DIRECTORY msg
+    FILES
+    MapServerInfo.msg
+)
+
+generate_messages(
+    DEPENDENCIES
+        std_msgs	
+)
+
 catkin_package(
     INCLUDE_DIRS
         include
