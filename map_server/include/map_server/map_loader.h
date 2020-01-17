@@ -1,13 +1,13 @@
 /**
-  ******************************************************************************************
+  *******************************************************************************
   * Copyright(c) HUST ARMS 302 All rights reserved. 
   * - Filename:  map_loader.h
   * - Author:    Zhao Wang
   * - Version:   1.0.0
   * - Date:      2019/12/30
   * - Brief:     Definition of MapLoader class to load map information from control station
-********************************************************************************************
-**/
+  *******************************************************************************
+ **/
 
 #ifndef MAP_LOADER_H_
 #define MAP_LOADER_H_
@@ -67,7 +67,8 @@ namespace map_server{
 
 	ros::Publisher map_path_pub_; 
 
-        TCPClient* tcp_c_;
+        TCPClient* map_info_tcp_c_; // tcp client for map information
+	TCPClient* grid_data_tcp_c_; // tcp client for map grid data
     };
 } // end of namespace
 
