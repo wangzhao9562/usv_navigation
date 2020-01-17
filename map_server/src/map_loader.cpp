@@ -1,47 +1,70 @@
 /**
-  ******************************************************************************************
+  *******************************************************************************
   * Copyright(c) HUST ARMS 302 All rights reserved. 
   * - Filename:  map_loader.cpp
   * - Author:    Zhao Wang
   * - Version:   1.0.0
   * - Date:      2020/1/2
   * - Brief:     Implementation of MapLoader class to load map information from control station
-********************************************************************************************
+  *******************************************************************************
 **/
 
 #include "map_server/map_loader.h"
+#include "map_server/grid_data_pack_protocol.h"
 
 namespace map_server{
     MapLoader::MapLoader(bool save_map, int threshold_occupied = 100, int threshold_free = 0) 
         : map_name_(""), threshold_occupied_(threshold_occupied), threshold_free_(threshold_free),
-        tcp_c_(NULL)
+        map_info_tcp_c_(NULL)
     {
 	ros::NodeHandle nh;
-        ros::NodeHandle private_nh("~");    
+        ros::NodeHandle private_nh("~/map_loader");    
         
-        std::string tcp_ip;
-        int tcp_port;
+        std::string map_info_tcp_ip, grid_data_tcp_ip;
+        int map_info_tcp_port, grid_data_tcp_port;
 
         // Set parameters
-        private_nh.param("tcp_ip", tcp_ip, std::string("127.0.0.1"));
-        private_nh.param("tcp_port", tcp_port, 6688);
+        private_nh.param("map_info_tcp_ip", map_info_tcp_ip, std::string("127.0.0.1"));
+        private_nh.param("map_info_tcp_port", map_info_tcp_port, 6688);
 
-        // Initialize tcp client
+	private_nh.param("grid_data_tcp_ip", grid_data_tcp_ip, std::string("127.0.0.1"));
+	private_nh.param("grid_data_tcp_ip", grid_data_tcp_port, 6689);
+
+        // Initialize tcp client for map information
         try{
-            tcp_c_ = new TCPClient(tcp_ip, tcp_port);
+            map_info_tcp_c_ = new TCPClient(map_info_tcp_ip, map_info_tcp_port);
         }
         catch(std::exception& e){
-            ROS_ERROR("map_server: cannot initialize tcp client!");
+            ROS_ERROR("map_server: initialize map info tcp client failed!");
         }
 
-        if(tcp_c_){
+	// Initialize tcp client for map grid data
+	try{
+	    grid_data_tcp_c_ = new TCPClient(grid_data_tcp_ip, grid_data_tcp_port);
+	}
+	catch(std::exception& e){
+	    ROS_ERROR("map_server: initialize grid data tcp client failed!");
+	}
+
+	// Run map info tcp client
+        if(map_info_tcp_c_){
             try{
-                tcp_c_->run();
+                map_info_tcp_c_->run();
             }
             catch(std::exception& e){
-                ROS_ERROR("map_server: cannot run tcp client!");
+                ROS_ERROR("map_server: run map info tcp client failed!");
             }
         }
+
+	// Run grid data tcp client
+	if(grid_data_tcp_c_){
+	    try{
+	        grid_data_tcp_c_->run();
+	    }
+	    catch(std::exception& e){
+	        ROS_ERROR("map_server: run map grid data tcp client failed!");
+	    }
+	}
 
         ROS_INFO("map_server: wait for map");      
 
@@ -53,11 +76,11 @@ namespace map_server{
     };
 
     MapLoader::~MapLoader(){
-        if(tcp_c_){
-            tcp_c_->stopListen();
-            delete tcp_c_;
+        if(map_info_tcp_c_){
+            map_info_tcp_c_->stopListen();
+            delete map_info_tcp_c_;
         }
-        tcp_c_ = NULL;
+        map_info_tcp_c_ = NULL;
     }
 
     void MapLoader::mapCallback(const nav_msgs::OccupancyGridConstPtr& map){
@@ -138,15 +161,19 @@ namespace map_server{
 	while(ros::ok()){
 		/* Receive map info from workstation through boost TCP socket */
 		std::vector<uint8_t> map_info_buf;
-		tcp_c_->getBuf(map_info_buf);
+		map_info_tcp_c_->getBuf(map_info_buf);
+
+		std::vector<uint8_t> grid_data_buf;
+		grid_data_tcp_c_->getBuf(grid_data_buf);
+
 		/* Decode message through mavlink protocol */
 		mavlink_message_t mav_msg; // mavlink message
 		mavlink_status_t mav_status; // mavlink status
 
 		std::string tp_map_name;
-		uint32_t map_width, map_height;
+		uint32_t map_width{0}, map_height{0};
 		std::vector<uint32_t> map_grid_info;
-		float map_resolution;
+		float map_resolution{0};
 		std::pair<uint32_t, uint32_t> map_origin;
 		std::pair<uint32_t, uint32_t> map_coord;
 
@@ -190,8 +217,37 @@ namespace map_server{
 			}
 		    }
 		}
+	
+		/* Decode map grid data */
+		std::vector<int> grid_data; // vector only contains map grid data
+
+		for(int ind = 0; ind < grid_data_buf.size(); ++ind){
+		    if(static_cast<char>(grid_data_buf[ind]) == GridDataPackProtocol::pack_head_){
+		        for(int b_ind = ind + 1; b_ind < grid_data_buf.size(); ++b_ind){
+			    if(static_cast<char>(grid_data_buf[b_ind]) == GridDataPackProtocol::pack_tail_){
+			        int sec_bit = ind + 1;
+			        int w_bit = ind + 2;
+			        int h_bit = ind + 3;
+			        
+			        if(h_bit < grid_data_buf.size()){
+				    // check if map size in stack is same as map info
+				    if(static_cast<int>(grid_data_buf[w_bit] == map_height)
+				&& static_cast<int>(grid_data_buf[h_bit] == map_width)
+				&& (b_ind - ind == map_height * map_width + 4)){
+				        for(int c_ind = h_bit + 1; c_ind < b_ind; ++c_ind){
+					    grid_data.push_back(grid_data_buf[c_ind]);
+					}
+				    }
+				}
+
+			        break;
+			    }
+			}
+		    }
+		}
+
 		/* Transform map info into formation of nav_msgs::OccupancyGrid and publish it on innter topic*/
-		/*
+		
 		if(map_name_ != tp_map_name){
 			map_name_ = tp_map_name;
 
@@ -208,13 +264,14 @@ namespace map_server{
 
 			// map_info_msg.data = map_info_buf; // not sure
 
-			for(int ind = 0; ind < map_info_buf.size(); ++ind){
-				map_info_msg.data[ind] = map_info_buf[ind];
+			for(int ind = 0; ind < grid_data.size(); ++ind){
+				map_info_msg.data[ind] = grid_data[ind];
 			} // not sure
 
 			map_info_pub_.publish(map_info_msg); // publish
+			// map_path_pub_.publish(map);
 		}
-		*/
+		
 		boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 	}
     };
