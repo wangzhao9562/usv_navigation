@@ -186,7 +186,7 @@ class MapServer
                map_resp_.map.info.resolution);
       meta_data_message_ = map_resp_.map.info;
 
-      info_sub = n.subscribe("map_path", 1, &MapServer::infoCallback);
+      info_sub = n.subscribe("map_server_info", 1, &MapServer::infoCallback);
 
       service = n.advertiseService("static_map", &MapServer::mapCallback, this);
       //pub = n.advertise<nav_msgs::MapMetaData>("map_metadata", 1,
