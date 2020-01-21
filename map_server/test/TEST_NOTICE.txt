@@ -1,3 +1,9 @@
+2020/1/21
+----------------
+1. Map server information receiving interface of map server should be complish  
+2. Should test map_loader with real map.
+3. Make a brief master workstation to test real statelite map such as google and binying
+
 2020/1/15
 ----------------
 1. Should solve the problem that client cannot receive data when test the tcp serve with real map. -- Clear
