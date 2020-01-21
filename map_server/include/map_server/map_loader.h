@@ -16,6 +16,7 @@
 
 #include "map_server/mavlink/v2.0/arms_usv_nav/mavlink.h"
 #include "map_server/tcp_client.h"
+#include "map_server/MapServerInfo.h"
 
 #include "ros/ros.h"
 #include "ros/console.h"
@@ -33,10 +34,12 @@ namespace map_server{
     public:
         /**
          * @brief Constructor of MapLoader
+         * @param save_map if save map 
+         * @param map_path path to store map
          * @param threshold_occupied Threshold value for occupied grid
          * @param threshold_free Threshold value for free grid
          */
-        MapLoader(bool save_map, int threshold_occupied, int threshold_free);
+        MapLoader(std::string map_path, bool save_map, int threshold_occupied, int threshold_free);
 
         /**
          * @brief Deconstructor of MapLoader
@@ -57,6 +60,7 @@ namespace map_server{
         void mapTransform();
 
     private:
+        std::string map_path_;
         std::string map_name_; 
         
 	int threshold_occupied_; 
@@ -65,7 +69,7 @@ namespace map_server{
         ros::Subscriber map_sub_; // ros subscriber which receive map information from ros topic
         ros::Publisher map_info_pub_; // inner ros publisher  
 
-	ros::Publisher map_path_pub_; 
+	ros::Publisher map_s_info_pub_; 
 
         TCPClient* map_info_tcp_c_; // tcp client for map information
 	TCPClient* grid_data_tcp_c_; // tcp client for map grid data
