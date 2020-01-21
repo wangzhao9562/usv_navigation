@@ -46,6 +46,8 @@
 #include "nav_msgs/MapMetaData.h"
 #include "yaml-cpp/yaml.h"
 
+#include "map_server/MapServerInfo.h"
+
 #ifdef HAVE_YAMLCPP_GT_0_5_0
 // The >> operator disappeared in yaml-cpp 0.5, so this function is
 // added to provide support for code written under the yaml-cpp 0.3 API.
