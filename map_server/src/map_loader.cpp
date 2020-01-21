@@ -13,8 +13,8 @@
 #include "map_server/grid_data_pack_protocol.h"
 
 namespace map_server{
-    MapLoader::MapLoader(bool save_map, int threshold_occupied = 100, int threshold_free = 0) 
-        : map_name_(""), threshold_occupied_(threshold_occupied), threshold_free_(threshold_free),
+    MapLoader::MapLoader(std::string map_path, bool save_map, int threshold_occupied = 100, int threshold_free = 0) 
+        : map_path_(map_path), map_name_(""), threshold_occupied_(threshold_occupied), threshold_free_(threshold_free),
         map_info_tcp_c_(NULL)
     {
 	ros::NodeHandle nh;
@@ -70,7 +70,7 @@ namespace map_server{
 
         map_sub_ = private_nh.subscribe("map_info", 1, &MapLoader::mapCallback, this);
         map_info_pub_ = private_nh.advertise<nav_msgs::OccupancyGrid>("map_info", 1, true);
-        map_path_pub_ = nh.advertise<std_msgs::String>("map_path", 1, true);
+        map_s_info_pub_ = nh.advertise<std_msgs::String>("map_server_info", 1, true);
 
 	boost::thread map_recv(boost::bind(&MapLoader::mapTransform, this)); // create thread to listen tcp port
     };
@@ -90,7 +90,7 @@ namespace map_server{
                map->info.resolution);
 
 
-        std::string mapdatafile = map_name_ + ".pgm";
+        std::string mapdatafile = map_path_ + map_name_ + ".pgm";
         ROS_INFO("map_server: Writing map occupancy data to %s", mapdatafile.c_str());
         FILE* out = fopen(mapdatafile.c_str(), "w");
         if (!out)
@@ -127,7 +127,7 @@ namespace map_server{
 
         fclose(out);
 
-        std::string mapmetadatafile = map_name_ + ".yaml";
+        std::string mapmetadatafile = map_path_ + map_name_ + ".yaml";
         ROS_INFO("Writing map occupancy data to %s", mapmetadatafile.c_str());
         FILE* yaml = fopen(mapmetadatafile.c_str(), "w");
 
@@ -269,7 +269,9 @@ namespace map_server{
 			} // not sure
 
 			map_info_pub_.publish(map_info_msg); // publish
-			// map_path_pub_.publish(map);
+
+                        map_server::MapServerInfo map_s_info_msg; 
+			map_s_info_pub_.publish(map_s_info_msg);
 		}
 		
 		boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
